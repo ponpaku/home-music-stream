@@ -7,6 +7,7 @@ A lightweight, intuitive **Home Music Stream** server designed to let you access
 - **Intuitive Interface:** Browse your music library by Artist and Album.
 - **Instant Playback:** Select and play music instantly.
 - **Playlist Management:** Create and manage playlists directly from the UI.
+- **Easy Upload:** Drag and drop songs or folders directly from your browser, or use the upload dialog to add music to the server (automatically organizes the structure).
 - **Cross-Device Access:** Host on your PC and listen on your phone or tablet.
 
 ## Why this project?

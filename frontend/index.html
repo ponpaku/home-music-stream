@@ -968,6 +968,143 @@
 				color: var(--danger-color);
 				border: 1px solid var(--danger-color);
 			}
+
+			/* Toast Styles */
+			.toast-container {
+				position: fixed;
+				bottom: 20px;
+				right: 20px;
+				z-index: 10000;
+				display: flex;
+				flex-direction: column;
+				gap: 10px;
+				pointer-events: none; /* Allow clicks to pass through container */
+			}
+			.toast {
+				padding: 12px 20px;
+				border-radius: 4px;
+				color: white;
+				min-width: 250px;
+				max-width: 350px;
+				box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+				animation: slideIn 0.3s ease-out forwards;
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				pointer-events: auto; /* Re-enable pointer events for toasts */
+				cursor: pointer;
+			}
+			.toast-success {
+				background-color: var(--accent-color);
+			}
+			.toast-error {
+				background-color: var(--danger-color);
+			}
+			.toast-info {
+				background-color: var(--bg-tertiary);
+				border: 1px solid var(--border-color);
+			}
+			@keyframes slideIn {
+				from { transform: translateX(100%); opacity: 0; }
+				to { transform: translateX(0); opacity: 1; }
+			}
+
+			/* Upload Overlay */
+			.upload-overlay {
+				position: absolute;
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				background-color: rgba(0,0,0,0.85);
+				z-index: 9999;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				flex-direction: column;
+				color: white;
+				backdrop-filter: blur(5px);
+				transition: opacity 0.3s;
+			}
+			.upload-content {
+				text-align: center;
+			}
+			.upload-spinner {
+				width: 50px;
+				height: 50px;
+				border: 5px solid rgba(255,255,255,0.3);
+				border-radius: 50%;
+				border-top-color: var(--accent-color);
+				animation: spin 1s ease-in-out infinite;
+				margin: 0 auto 20px;
+			}
+			@keyframes spin {
+				to { transform: rotate(360deg); }
+			}
+
+			/* Upload Modal Styles */
+			.upload-drop-zone {
+				border: 2px dashed var(--border-color);
+				border-radius: 8px;
+				padding: 40px 20px;
+				text-align: center;
+				margin-bottom: 20px;
+				transition: all 0.2s;
+				background-color: var(--bg-tertiary);
+				cursor: pointer;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				gap: 15px;
+				min-height: 200px;
+			}
+			.upload-drop-zone:hover, .upload-drop-zone.drag-active {
+				border-color: var(--accent-color);
+				background-color: rgba(29, 185, 84, 0.1);
+			}
+			.upload-icon-large {
+				color: var(--text-secondary);
+				width: 48px;
+				height: 48px;
+			}
+			.upload-drop-zone:hover .upload-icon-large {
+				color: var(--accent-color);
+			}
+			.upload-text {
+				color: var(--text-secondary);
+				font-size: 1.1rem;
+			}
+			.upload-subtext {
+				color: var(--text-secondary);
+				font-size: 0.9rem;
+				opacity: 0.7;
+			}
+			.upload-options {
+				display: flex;
+				justify-content: center;
+				gap: 15px;
+				margin-top: 10px;
+			}
+			.or-divider {
+				display: flex;
+				align-items: center;
+				margin: 15px 0;
+				color: var(--text-secondary);
+				font-size: 0.9rem;
+			}
+			.or-divider::before, .or-divider::after {
+				content: "";
+				flex: 1;
+				height: 1px;
+				background-color: var(--border-color);
+			}
+			.or-divider::before {
+				margin-right: 10px;
+			}
+			.or-divider::after {
+				margin-left: 10px;
+			}
 		</style>
 	</head>
 	<body>
@@ -1187,6 +1324,33 @@
 					<path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
 				</svg>
 			);
+
+			const UploadIcon = () => (
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z" />
+				</svg>
+			);
+
+			const Toast = ({ id, message, type, onClose }) => {
+				useEffect(() => {
+					const timer = setTimeout(() => {
+						onClose(id);
+					}, 3000);
+					return () => clearTimeout(timer);
+				}, [id, onClose]);
+
+				return (
+					<div className={`toast toast-${type}`} onClick={() => onClose(id)}>
+						<span>{message}</span>
+					</div>
+				);
+			};
 
 			// Modal component
 			const Modal = ({ isOpen, onClose, title, children }) => {
@@ -1413,6 +1577,167 @@
 				const [isShuffleActive, setIsShuffleActive] = useState(false);
 				const [repeatMode, setRepeatMode] = useState(0); // 0: no repeat, 1: repeat playlist, 2: repeat song
 				const [isAdmin, setIsAdmin] = useState(false);
+				const [isUploading, setIsUploading] = useState(false);
+				const [toasts, setToasts] = useState([]);
+				const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+				const [isDragActive, setIsDragActive] = useState(false);
+				const fileInputRef = useRef(null);
+				const folderInputRef = useRef(null);
+
+				const addToast = (message, type = 'info') => {
+					const id = Date.now() + Math.random();
+					setToasts(prev => [...prev, { id, message, type }]);
+				};
+
+				const removeToast = (id) => {
+					setToasts(prev => prev.filter(t => t.id !== id));
+				};
+
+				// Global Drag & Drop Handlers (Keep existing behavior for full window drop)
+				const handleDragOver = (e) => {
+					e.preventDefault();
+					e.stopPropagation();
+				};
+
+				const handleDrop = async (e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					
+					// If dropping on the modal drop zone, don't trigger the global handler
+					if (isUploadModalOpen && e.target.closest('.upload-drop-zone')) {
+						return;
+					}
+
+					if (e.dataTransfer.items) {
+						processDroppedItems(e.dataTransfer.items);
+					}
+				};
+
+				// Modal Drag & Drop Handlers
+				const handleDragEnter = (e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					setIsDragActive(true);
+				};
+
+				const handleDragLeave = (e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					setIsDragActive(false);
+				};
+
+				const handleDropZoneDrop = async (e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					setIsDragActive(false);
+					
+					if (e.dataTransfer.items) {
+						processDroppedItems(e.dataTransfer.items);
+						setIsUploadModalOpen(false); // Close modal after drop
+					}
+				};
+
+				const processDroppedItems = async (items) => {
+					setIsUploading(true);
+					const files = [];
+					
+					const traverseFileTree = async (item, path = "") => {
+						if (item.isFile) {
+							return new Promise((resolve) => {
+								item.file((file) => {
+									files.push({ file, path: path + file.name });
+									resolve();
+								});
+							});
+						} else if (item.isDirectory) {
+							const dirReader = item.createReader();
+							const entries = await new Promise((resolve) => {
+								let allEntries = [];
+								const readEntries = () => {
+									dirReader.readEntries((result) => {
+										if (result.length > 0) {
+											allEntries = allEntries.concat(result);
+											readEntries();
+										} else {
+											resolve(allEntries);
+										}
+									});
+								};
+								readEntries();
+							});
+							
+							const promises = entries.map((entry) => 
+								traverseFileTree(entry, path + item.name + "/")
+							);
+							await Promise.all(promises);
+						}
+					};
+
+					const promises = [];
+					for (let i = 0; i < items.length; i++) {
+						const item = items[i].webkitGetAsEntry();
+						if (item) {
+							promises.push(traverseFileTree(item));
+						}
+					}
+					
+					try {
+						await Promise.all(promises);
+						if (files.length > 0) {
+							uploadFiles(files);
+						} else {
+							setIsUploading(false);
+						}
+					} catch (error) {
+						console.error(error);
+						setIsUploading(false);
+						addToast("Error processing files", "error");
+					}
+				};
+
+				const handleFileSelect = (e) => {
+					if (e.target.files && e.target.files.length > 0) {
+						setIsUploading(true);
+						setIsUploadModalOpen(false); // Close modal
+						
+						const files = Array.from(e.target.files).map(file => {
+							// Use webkitRelativePath if available (for folders), otherwise filename
+							const path = file.webkitRelativePath || file.name;
+							return { file, path };
+						});
+						
+						uploadFiles(files);
+						// Reset input
+						e.target.value = null;
+					}
+				};
+
+				const uploadFiles = (fileList) => {
+					const formData = new FormData();
+					fileList.forEach(({ file, path }) => {
+						formData.append('files', file, path);
+					});
+
+					fetch('/upload', {
+						method: 'POST',
+						body: formData
+					})
+					.then(res => res.json())
+					.then(data => {
+						setIsUploading(false);
+						if (data.success) {
+							addToast(`${data.count} files uploaded successfully`, "success");
+							fetchLibrary();
+						} else {
+							addToast('Upload failed: ' + (data.error || 'Unknown error'), "error");
+						}
+					})
+					.catch(err => {
+						console.error(err);
+						setIsUploading(false);
+						addToast('Upload failed due to network error', "error");
+					});
+				};
 
 				// New state variables for playlist saving and loading
 				const [savedPlaylists, setSavedPlaylists] = useState([]);
@@ -2339,7 +2664,36 @@
 				if (currentView === "login") return <LoginView onLoginSuccess={handleLoginSuccess} />;
 
 				return (
-					<>
+					<div 
+						onDragOver={handleDragOver} 
+						onDrop={handleDrop}
+						style={{height: '100%', display: 'flex', flexDirection: 'column', position: 'relative'}}
+					>
+						{isUploading && (
+							<div className="upload-overlay">
+								<div className="upload-content">
+									<div className="upload-spinner"></div>
+									<h2>Processing Files...</h2>
+									<p>Please wait while we process your uploads</p>
+								</div>
+							</div>
+						)}
+						<input
+							type="file"
+							multiple
+							ref={fileInputRef}
+							style={{ display: 'none' }}
+							onChange={handleFileSelect}
+						/>
+						<input
+							type="file"
+							directory="" 
+							webkitdirectory=""
+							multiple
+							ref={folderInputRef}
+							style={{ display: 'none' }}
+							onChange={handleFileSelect}
+						/>
 						<header>
 							<h1 
 								onClick={() => navigate('home')} 
@@ -2356,6 +2710,14 @@
 								<MenuIcon />
 							</button>
 							<div className={`nav-links ${isMenuOpen ? "open" : ""}`}>
+								<button 
+									className="nav-link"
+									onClick={() => setIsUploadModalOpen(true)}
+									style={{background:'none', border:'none', cursor:'pointer', fontSize:'1rem', textAlign:'left', fontFamily: 'inherit', display:'flex', alignItems:'center', gap:'5px'}}
+									title="Upload files"
+								>
+									<UploadIcon /> Upload
+								</button>
 								<button 
 									className={`nav-link ${currentView === 'home' ? 'active' : ''}`}
 									onClick={() => navigate('home')}
@@ -2934,7 +3296,74 @@
 								</button>
 							</div>
 						</Modal>
-					</>
+						
+						{/* Upload Modal */}
+						<Modal
+							isOpen={isUploadModalOpen}
+							onClose={() => setIsUploadModalOpen(false)}
+							title="Upload Music"
+						>
+							<div 
+								className={`upload-drop-zone ${isDragActive ? 'drag-active' : ''}`}
+								onDragEnter={handleDragEnter}
+								onDragOver={handleDragOver}
+								onDragLeave={handleDragLeave}
+								onDrop={handleDropZoneDrop}
+								onClick={() => fileInputRef.current.click()}
+							>
+								<svg 
+									xmlns="http://www.w3.org/2000/svg" 
+									width="48" 
+									height="48" 
+									viewBox="0 0 24 24" 
+									fill="currentColor"
+									className="upload-icon-large"
+								>
+									<path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+								</svg>
+								<div className="upload-text">Drag & drop files or folders here</div>
+								<div className="upload-subtext">or click to select files</div>
+							</div>
+							
+							<div className="or-divider">OR</div>
+
+							<div className="upload-options">
+								<button 
+									className="btn btn-secondary"
+									onClick={() => fileInputRef.current.click()}
+								>
+									Select Files
+								</button>
+								<button 
+									className="btn btn-secondary"
+									onClick={() => folderInputRef.current.click()}
+								>
+									Select Folder
+								</button>
+							</div>
+							
+							<div className="modal-footer" style={{marginTop: '20px'}}>
+								<button
+									className="btn btn-secondary"
+									onClick={() => setIsUploadModalOpen(false)}
+								>
+									Cancel
+								</button>
+							</div>
+						</Modal>
+
+						<div className="toast-container">
+							{toasts.map(toast => (
+								<Toast 
+									key={toast.id} 
+									id={toast.id}
+									message={toast.message} 
+									type={toast.type} 
+									onClose={removeToast} 
+								/>
+							))}
+						</div>
+					</div>
 				);
 			};
 

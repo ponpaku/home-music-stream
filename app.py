@@ -333,6 +333,57 @@ def delete_playlist(playlist_id):
     
     return jsonify({"success": True})
 
+@app.route('/upload', methods=['POST'])
+@login_required
+def upload_files():
+    if 'files' not in request.files:
+        return jsonify({"error": "No files part"}), 400
+    
+    files = request.files.getlist('files')
+    uploaded_count = 0
+    
+    for file in files:
+        if file.filename == '':
+            continue
+        
+        # Sanitize and normalize path separators
+        filename = file.filename.replace('\\', '/')
+        parts = filename.split('/')
+        
+        # Filter out empty parts and '..'
+        parts = [p for p in parts if p and p != '..']
+        
+        if not parts:
+            continue
+
+        # Determine destination path based on depth
+        if len(parts) == 1:
+            save_path = os.path.join(MUSIC_DIR, "Unknown Artist", "Unknown Album", parts[0])
+        elif len(parts) == 2:
+            save_path = os.path.join(MUSIC_DIR, "Unknown Artist", parts[0], parts[1])
+        elif len(parts) >= 3:
+            # Use the last 3 parts to ensure Artist/Album/Song structure
+            relevant_parts = parts[-3:]
+            save_path = os.path.join(MUSIC_DIR, *relevant_parts)
+        else:
+             continue
+        
+        # Ensure the file is an audio file
+        if not save_path.lower().endswith(('.mp3', '.wav', '.ogg', '.m4a', '.flac')):
+             continue
+
+        # Create directories
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        
+        # Save file
+        file.save(save_path)
+        uploaded_count += 1
+        
+    # Update music structure
+    save_music_structure_to_json(MUSIC_DIR)
+    
+    return jsonify({"success": True, "count": uploaded_count})
+
 # メインルート (ログイン必須)
 @app.route('/')
 def index():
