@@ -1,0 +1,2945 @@
+<!DOCTYPE html>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Home Music Stream</title>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.22.17/babel.min.js"></script>
+		<link rel="shortcut icon" type="image/png" href="static/favicon.png" />
+		<style>
+			:root {
+				--bg-primary: #121212;
+				--bg-secondary: #1e1e1e;
+				--bg-tertiary: #282828;
+				--text-primary: #ffffff;
+				--text-secondary: #b3b3b3;
+				--accent-color: #1db954;
+				--accent-hover: #1ed760;
+				--danger-color: #e01e5a;
+				--border-color: #333333;
+				--header-height: 50px;
+				--player-height: 60px;
+				--content-height: calc(
+					100vh - var(--header-height) - var(--player-height)
+				);
+			}
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+			body {
+				font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+				background-color: var(--bg-primary);
+				color: var(--text-primary);
+				line-height: 1.5;
+				overflow: hidden;
+				height: 100vh;
+			}
+
+			.scrollbar {
+				-ms-overflow-style: none;
+				scrollbar-width: none;
+			}
+			.scrollbar::-webkit-scrollbar {
+				display: none;
+			}
+			.library::-webkit-scrollbar,
+			.playlist::-webkit-scrollbar {
+				display: none;
+			}
+
+			#app {
+				display: flex;
+				flex-direction: column;
+				height: 100vh;
+				max-height: 100vh;
+			}
+			header {
+				background-color: var(--bg-secondary);
+				text-align: center;
+				box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+				height: var(--header-height);
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				padding: 20px;
+				border-bottom: 1px solid var(--border-color);
+				margin-bottom: 30px;
+			}
+			h1 {
+				font-size: 1.5rem;
+			}
+			.nav-links {
+				display: flex;
+				gap: 20px;
+			}
+			.nav-link {
+				color: var(--text-secondary);
+				text-decoration: none;
+				transition: color 0.2s;
+			}
+			.nav-link:hover {
+				color: var(--text-primary);
+			}
+			.nav-link.active {
+				color: var(--accent-color);
+			}
+			main {
+				display: flex;
+				height: var(--content-height);
+				overflow: hidden;
+			}
+			.library {
+				width: 400px;
+				background-color: var(--bg-secondary);
+				padding: 10px;
+				overflow-y: auto;
+				border-right: 1px solid var(--border-color);
+				height: 100%;
+				padding-top: 0;
+			}
+			.playlist {
+				flex: 1;
+				padding: 0 10px 20px;
+				background-color: var(--bg-primary);
+				height: 100%;
+				display: flex;
+				flex-direction: column;
+			}
+			.player-controls {
+				background-color: var(--bg-tertiary);
+				padding: 0 15px;
+				display: flex;
+				align-items: center;
+				box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+				height: var(--player-height);
+				min-height: var(--player-height);
+				max-height: var(--player-height);
+				overflow: hidden;
+			}
+			.artist-item {
+				margin-bottom: 8px;
+			}
+			.artist-header,
+			.album-header {
+				display: flex;
+				align-items: center;
+				cursor: pointer;
+				padding: 8px;
+				border-radius: 4px;
+				transition: background-color 0.2s;
+				height: 36px;
+			}
+			.artist-header:hover,
+			.album-header:hover {
+				background-color: var(--bg-tertiary);
+			}
+			.artist-header.in-playlist,
+			.album-header.in-playlist {
+				background-color: rgba(29, 185, 84, 0.1);
+				border-left: 3px solid var(--accent-color);
+				padding-left: 5px;
+			}
+			.expand-icon {
+				margin-right: 10px;
+				transition: transform 0.2s;
+			}
+			.expanded .expand-icon {
+				transform: rotate(90deg);
+			}
+			.artist-name,
+			.album-name {
+				flex: 1;
+				font-weight: 500;
+			}
+			.album-list,
+			.song-list {
+				margin-left: 20px;
+				margin-top: 2px;
+			}
+			.album-item {
+				margin-bottom: 3px;
+			}
+			.song-item {
+				display: flex;
+				align-items: center;
+				padding: 4px 8px;
+				border-radius: 4px;
+				cursor: pointer;
+				transition: background-color 0.2s;
+				height: 32px;
+			}
+			.song-item:hover {
+				background-color: var(--bg-tertiary);
+			}
+			.song-title {
+				flex: 1;
+				color: var(--text-secondary);
+			}
+			.song-title.in-playlist {
+				color: var(--accent-color);
+			}
+			.action-btn {
+				background: none;
+				border: none;
+				color: var(--text-secondary);
+				cursor: pointer;
+				font-size: 1.2rem;
+				width: 30px;
+				height: 30px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				border-radius: 50%;
+				transition: all 0.2s;
+			}
+			.action-btn:hover {
+				background-color: rgba(255, 255, 255, 0.1);
+				color: var(--text-primary);
+			}
+			.action-btn.add {
+				color: var(--accent-color);
+			}
+			.action-btn.add:hover {
+				color: var(--accent-hover);
+			}
+			.action-btn.remove {
+				color: var(--danger-color);
+			}
+			.playlist-header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				background-color: var(--bg-primary);
+				z-index: 5;
+				padding: 10px 5px;
+				margin-bottom: 15px;
+				border-bottom: 1px solid var(--border-color);
+			}
+			.playlist-header h2 {
+				font-size: 1.3rem;
+			}
+			.playlist-actions {
+				display: flex;
+				gap: 10px;
+			}
+			
+			@media (max-width: 768px) {
+				.btn-text {
+					display: none;
+				}
+				.playlist-header h2 {
+					font-size: 1.1rem;
+				}
+				.playlist-actions .btn {
+					padding: 0;
+					width: 36px;
+					height: 36px;
+					justify-content: center;
+					border-radius: 50%;
+				}
+				.playlist-actions {
+					gap: 5px;
+				}
+			}
+			.playlist-body {
+				flex: 1;
+				overflow-y: auto;
+				height: calc(100% - 4em);
+			}
+			.playlist-item {
+				display: flex;
+				align-items: center;
+				padding: 8px 12px;
+				margin-bottom: 6px;
+				background-color: var(--bg-secondary);
+				border-radius: 6px;
+				height: 50px;
+				transition: transform 0.2s, box-shadow 0.2s;
+			}
+			.playlist-item:hover {
+				transform: translateY(-2px);
+				box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+			}
+			.playlist-item.playing {
+				border-left: 4px solid var(--accent-color);
+				background-color: rgba(29, 185, 84, 0.1);
+			}
+			.song-info {
+				flex: 1;
+				margin-left: 15px;
+			}
+			.song-name {
+				font-weight: 500;
+				margin-bottom: 2px;
+			}
+			.song-meta {
+				color: var(--text-secondary);
+				font-size: 0.85rem;
+			}
+			.player-wrapper {
+				display: flex;
+				width: 100%;
+				align-items: center;
+				justify-content: space-between;
+			}
+
+			.player-left {
+				display: flex;
+				align-items: center;
+				width: 25%;
+				min-width: 200px;
+			}
+
+			.player-center {
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				gap: 15px;
+				padding: 0 15px;
+			}
+
+			.player-right {
+				display: flex;
+				align-items: center;
+				justify-content: flex-end;
+				flex: 1;
+				gap: 15px;
+			}
+
+			.now-playing {
+				display: flex;
+				align-items: center;
+				overflow: hidden;
+			}
+
+			.now-playing-thumbnail {
+				width: 40px;
+				height: 40px;
+				background-color: var(--bg-secondary);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				border-radius: 4px;
+				margin-right: 10px;
+				flex-shrink: 0;
+			}
+
+			.now-playing-info {
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+
+			.now-playing-song {
+				font-weight: 500;
+				font-size: 0.9rem;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+
+			.now-playing-artist {
+				color: var(--text-secondary);
+				font-size: 0.8rem;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+
+			.player-controls-container {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+			}
+
+			.progress-area {
+				display: flex;
+				align-items: center;
+				flex: 1;
+				gap: 10px;
+			}
+
+			.volume-area {
+				display: flex;
+				align-items: center;
+				position: relative;
+			}
+
+			.volume-slider {
+				width: 0;
+				height: 8px; /* 非表示時も同じ高さに */
+				background-color: var(--border-color);
+				border-radius: 5px;
+				cursor: pointer;
+				position: relative;
+				transition: all 0.3s ease;
+				overflow: hidden;
+				opacity: 0;
+				margin-left: 0;
+				user-select: none; /* ドラッグ中のテキスト選択を防止 */
+			}
+
+			.volume-area:hover .volume-slider {
+				width: 80px;
+				opacity: 1;
+				margin-left: 10px;
+				height: 8px; /* 少し大きくして操作しやすく */
+			}
+
+			.volume-level {
+				height: 100%;
+				background-color: var(--accent-color);
+				border-radius: 5px;
+				position: absolute;
+				left: 0;
+				top: 0;
+				pointer-events: none; /* 下のコンテナのイベントを阻害しないように */
+			}
+
+			@media (max-width: 768px) {
+				:root {
+					--player-height: 130px;
+				}
+				.player-wrapper {
+					flex-direction: column;
+					height: auto;
+					padding: 10px 0;
+				}
+
+				.player-left {
+					width: 100%;
+					min-width: auto;
+					margin-bottom: 5px;
+					justify-content: center;
+				}
+
+				.player-center {
+					width: 100%;
+					justify-content: center;
+					margin-bottom: 5px;
+				}
+
+				.player-right {
+					width: 100%;
+					justify-content: center;
+				}
+
+				.progress-area {
+					width: 100%;
+				}
+
+				.volume-area:hover .volume-slider {
+					width: 60px;
+				}
+			}
+			.player-top {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				width: 100%;
+				margin-bottom: 3px;
+				height: 2em;
+			}
+			.now-playing {
+				display: flex;
+				align-items: center;
+				flex: 1;
+				max-width: 300px;
+				overflow: hidden;
+			}
+			.now-playing-info {
+				margin-left: 10px;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+			.now-playing-song {
+				font-weight: 500;
+				font-size: 0.9rem;
+			}
+			.now-playing-artist {
+				color: var(--text-secondary);
+				font-size: 0.8rem;
+			}
+			.player-middle {
+				display: flex;
+				align-items: center;
+				gap: 15px;
+				margin-bottom: 3px;
+				height: 3em;
+			}
+			.play-btn {
+				width: 40px;
+				height: 40px;
+				border-radius: 50%;
+				background-color: var(--accent-color);
+				color: var(--bg-primary);
+				font-size: 1.5rem;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				cursor: pointer;
+				transition: transform 0.2s, background-color 0.2s;
+				border: none;
+			}
+			.play-btn:hover {
+				background-color: var(--accent-hover);
+				transform: scale(1.1);
+			}
+			.player-bottom {
+				display: flex;
+				align-items: center;
+				width: 100%;
+				gap: 15px;
+				height: 2em;
+			}
+			.time-info {
+				font-size: 0.8rem;
+				color: var(--text-secondary);
+				width: 45px;
+				text-align: center;
+			}
+			.progress-container {
+				flex: 1;
+				height: 8px; /* 少し大きくして操作しやすく */
+				background-color: var(--border-color);
+				border-radius: 5px;
+				cursor: pointer;
+				position: relative;
+				user-select: none; /* ドラッグ中のテキスト選択を防止 */
+			}
+
+			.progress-bar {
+				height: 100%;
+				background-color: var(--accent-color);
+				border-radius: 5px;
+				position: absolute;
+				left: 0;
+				top: 0;
+				pointer-events: none; /* 下のコンテナのイベントを阻害しないように */
+			}
+			.volume-container {
+				display: flex;
+				align-items: center;
+				width: 120px;
+				gap: 5px;
+			}
+			.button-with-badge {
+				position: relative;
+			}
+			.badge {
+				position: absolute;
+				top: -5px;
+				right: -5px;
+				background-color: var(--accent-color);
+				color: var(--bg-primary);
+				font-size: 0.7rem;
+				width: 18px;
+				height: 18px;
+				border-radius: 50%;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+			.empty-playlist {
+				text-align: center;
+				color: var(--text-secondary);
+				padding: 40px 0;
+			}
+			.empty-playlist p {
+				margin-bottom: 20px;
+			}
+			.add-to-playlist-hint {
+				font-size: 0.85rem;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				gap: 5px;
+			}
+			.hint-icon {
+				color: var(--accent-color);
+			}
+			button {
+				background: none;
+				border: none;
+				cursor: pointer;
+			}
+			.btn {
+				padding: 6px 12px;
+				border-radius: 20px;
+				font-weight: 500;
+				transition: all 0.2s;
+				display: flex;
+				align-items: center;
+				gap: 5px;
+			}
+			.btn-primary {
+				background-color: var(--accent-color);
+				color: var(--bg-primary);
+			}
+			.btn-primary:hover {
+				background-color: var(--accent-hover);
+			}
+			.btn-secondary {
+				background-color: var(--bg-tertiary);
+				color: var(--text-primary);
+			}
+			.btn-secondary:hover {
+				background-color: var(--border-color);
+			}
+			.btn-danger {
+				background-color: var(--danger-color);
+				color: var(--text-primary);
+			}
+			.btn-danger:hover {
+				opacity: 0.9;
+			}
+			.search-box {
+				margin-bottom: 10px;
+				position: relative;
+				height: 38px;
+				position: sticky;
+				top: 0;
+				background-color: var(--bg-secondary);
+			}
+			.search-box input {
+				width: 100%;
+				padding: 8px 15px;
+				padding-left: 35px;
+				background-color: var(--bg-tertiary);
+				border: 1px solid var(--border-color);
+				border-radius: 20px;
+				color: var(--text-primary);
+				font-size: 0.9rem;
+			}
+			.search-box input:focus {
+				outline: none;
+				border-color: var(--accent-color);
+			}
+			.search-icon {
+				position: absolute;
+				left: 12px;
+				top: 50%;
+				transform: translateY(-50%);
+				color: var(--text-secondary);
+			}
+			.toggle-btn.active {
+				color: var(--accent-color);
+			}
+
+			/* Modal styles */
+			.modal-overlay {
+				position: fixed;
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				background-color: rgba(0, 0, 0, 0.7);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				z-index: 1000;
+			}
+
+			.modal {
+				background-color: var(--bg-secondary);
+				border-radius: 8px;
+				padding: 20px;
+				width: 400px;
+				max-width: 90%;
+				box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+			}
+
+			.modal-header {
+				margin-bottom: 15px;
+			}
+
+			.modal-title {
+				font-size: 1.2rem;
+				margin: 0;
+			}
+
+			.modal-body {
+				margin-bottom: 20px;
+			}
+
+			.modal-footer {
+				display: flex;
+				justify-content: flex-end;
+				gap: 10px;
+			}
+
+			.form-group {
+				margin-bottom: 15px;
+			}
+
+			.form-label {
+				display: block;
+				margin-bottom: 5px;
+				font-size: 0.9rem;
+				color: var(--text-secondary);
+			}
+
+			.form-control {
+				width: 100%;
+				padding: 8px 12px;
+				background-color: var(--bg-tertiary);
+				border: 1px solid var(--border-color);
+				border-radius: 4px;
+				color: var(--text-primary);
+				font-size: 0.9rem;
+			}
+
+			.form-control:focus {
+				outline: none;
+				border-color: var(--accent-color);
+			}
+
+			/* Saved playlists section */
+			.saved-playlists {
+				margin-top: 20px;
+				border-top: 1px solid var(--border-color);
+				padding-top: 15px;
+			}
+
+			.saved-playlists-header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				margin-bottom: 10px;
+			}
+
+			.saved-playlists-title {
+				font-size: 1.1rem;
+				margin: 0;
+				color: var(--text-secondary);
+			}
+
+			.saved-playlist-item {
+				display: flex;
+				align-items: center;
+				padding: 8px 12px;
+				background-color: var(--bg-tertiary);
+				border-radius: 6px;
+				margin-bottom: 6px;
+				transition: background-color 0.2s;
+				cursor: pointer;
+			}
+
+			.saved-playlist-item:hover {
+				background-color: var(--border-color);
+			}
+
+			.saved-playlist-name {
+				flex: 1;
+				font-weight: 500;
+			}
+
+			.tab-container {
+				margin-bottom: 15px;
+			}
+
+			.tabs {
+				display: flex;
+				border-bottom: 1px solid var(--border-color);
+			}
+
+			.tab {
+				padding: 8px 15px;
+				cursor: pointer;
+				border-bottom: 2px solid transparent;
+				color: var(--text-secondary);
+				transition: all 0.2s;
+			}
+
+			.tab:hover {
+				color: var(--text-primary);
+			}
+
+			.tab.active {
+				color: var(--accent-color);
+				border-bottom-color: var(--accent-color);
+			}
+
+			.resizer {
+				background-color: var(--border-color);
+				transition: background-color 0.2s;
+				z-index: 10;
+				flex-shrink: 0;
+			}
+			/* Desktop: Vertical resizer */
+			@media (min-width: 769px) {
+				.resizer {
+					width: 5px;
+					height: 100%;
+					cursor: col-resize;
+				}
+			}
+			.resizer:hover, .resizer.active {
+				background-color: var(--accent-color);
+			}
+
+			/* Responsive tweaks */
+			@media (max-width: 768px) {
+				.resizer {
+					width: 100%;
+					height: 15px; /* Larger hit area for touch */
+					cursor: row-resize;
+					display: flex; /* Show flex handles if needed, or just block */
+					justify-content: center;
+					align-items: center;
+				}
+				/* Add a handle visual for mobile */
+				.resizer::after {
+					content: "";
+					width: 40px;
+					height: 4px;
+					background-color: var(--text-secondary);
+					border-radius: 2px;
+				}
+
+				main {
+					flex-direction: column;
+				}
+				.library {
+					width: 100%;
+					max-height: 50%;
+					border-right: none;
+					border-bottom: 1px solid var(--border-color);
+				}
+				.playlist {
+					max-height: 50%;
+				}
+			}
+
+			header {
+				position: relative;
+			}
+
+			.menu-toggle {
+				display: none;
+				background: none;
+				border: none;
+				color: var(--text-primary);
+				cursor: pointer;
+				padding: 5px;
+			}
+
+			@media (max-width: 768px) {
+				.menu-toggle {
+					display: block;
+				}
+				
+				.nav-links {
+					display: none;
+					position: absolute;
+					top: var(--header-height);
+					right: 0;
+					background-color: var(--bg-secondary);
+					flex-direction: column;
+					width: 100%;
+					padding: 10px 0;
+					box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+					z-index: 100;
+					border-bottom: 1px solid var(--border-color);
+				}
+				
+				.nav-links.open {
+					display: flex;
+				}
+				
+				.nav-link {
+					padding: 15px 20px;
+					width: 100%;
+					display: block;
+					text-align: center;
+					border-bottom: 1px solid var(--bg-tertiary);
+				}
+				
+				.nav-link:last-child {
+					border-bottom: none;
+				}
+			}
+
+			/* Login View Styles */
+			.login-container {
+				background-color: var(--bg-secondary);
+				border-radius: 8px;
+				box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+				padding: 30px;
+				width: 90%;
+				max-width: 400px;
+				margin: 100px auto;
+			}
+			.login-header {
+				text-align: center;
+				margin-bottom: 30px;
+			}
+			.login-header h1 {
+				font-size: 1.8rem;
+				margin-bottom: 10px;
+			}
+			.error-message {
+				color: var(--danger-color);
+				background-color: rgba(224, 30, 90, 0.1);
+				padding: 10px;
+				border-radius: 4px;
+				margin-bottom: 20px;
+			}
+
+			/* Admin View Styles */
+			.admin-container {
+				width: 100%;
+				margin: 0 auto;
+				padding: 20px;
+				overflow-y: auto;
+				height: 100%;
+				-ms-overflow-style: none; /* IE/Edge */
+				scrollbar-width: none; /* Firefox */
+			}
+			.admin-container::-webkit-scrollbar {
+				display: none; /* Chrome/Safari */
+			}
+			.card {
+				background-color: var(--bg-secondary);
+				border-radius: 8px;
+				padding: 25px;
+				margin-bottom: 30px;
+				box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+			}
+			.card-header {
+				margin-bottom: 20px;
+			}
+			.card-title {
+				font-size: 1.4rem;
+				margin-bottom: 5px;
+			}
+			.checkbox-group {
+				display: flex;
+				align-items: center;
+				margin-bottom: 20px;
+			}
+			.checkbox-group input[type="checkbox"] {
+				margin-right: 10px;
+				width: 18px;
+				height: 18px;
+				accent-color: var(--accent-color);
+			}
+			.table {
+				width: 100%;
+				border-collapse: collapse;
+			}
+			.table th, .table td {
+				padding: 12px 15px;
+				text-align: left;
+				border-bottom: 1px solid var(--border-color);
+			}
+			.role-badge {
+				display: inline-block;
+				padding: 3px 8px;
+				border-radius: 20px;
+				font-size: 0.8rem;
+				font-weight: 600;
+			}
+			.role-badge-success {
+				background-color: var(--accent-color);
+				color: var(--bg-primary);
+			}
+			.role-badge-primary {
+				background-color: var(--border-color);
+				color: var(--text-primary);
+			}
+			.message {
+				padding: 15px;
+				border-radius: 4px;
+				margin-bottom: 20px;
+			}
+			.message-success {
+				background-color: rgba(29, 185, 84, 0.1);
+				color: var(--accent-color);
+				border: 1px solid var(--accent-color);
+			}
+			.message-error {
+				background-color: rgba(224, 30, 90, 0.1);
+				color: var(--danger-color);
+				border: 1px solid var(--danger-color);
+			}
+		</style>
+	</head>
+	<body>
+		<div id="app"></div>
+
+		<script type="text/babel">
+			const { useState, useEffect, useRef } = React;
+
+			// Icon components
+			const PlayIcon = () => (
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="24"
+					height="24"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path d="M8 5v14l11-7z" />
+				</svg>
+			);
+			const PauseIcon = () => (
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="24"
+					height="24"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+				</svg>
+			);
+			const PreviousIcon = () => (
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+				</svg>
+			);
+			const NextIcon = () => (
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+				</svg>
+			);
+			const VolumeIcon = () => (
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+				</svg>
+			);
+			const MuteIcon = () => (
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z" />
+				</svg>
+			);
+			const PlusIcon = () => (
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="16"
+					height="16"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+				</svg>
+			);
+			const MinusIcon = () => (
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="16"
+					height="16"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path d="M19 13H5v-2h14v2z" />
+				</svg>
+			);
+			const ChevronRightIcon = () => (
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="16"
+					height="16"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+				</svg>
+			);
+			const SearchIcon = () => (
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="16"
+					height="16"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+				</svg>
+			);
+			const MusicNoteIcon = () => (
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="24"
+					height="24"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+				</svg>
+			);
+			const ShuffleIcon = () => (
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z" />
+				</svg>
+			);
+			const NoRepeatIcon = () => (
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z" />
+				</svg>
+			);
+			const RepeatIcon = () => (
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z" />
+				</svg>
+			);
+			const RepeatOneIcon = () => (
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4zm-4-2V9h-1l-2 1v1h1.5v4H13z" />
+				</svg>
+			);
+			const SaveIcon = () => (
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z" />
+				</svg>
+			);
+			const LoadIcon = () => (
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
+				</svg>
+			);
+			const TrashIcon = () => (
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+				</svg>
+			);
+
+			const MenuIcon = () => (
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="24"
+					height="24"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
+				</svg>
+			);
+
+			// Modal component
+			const Modal = ({ isOpen, onClose, title, children }) => {
+				if (!isOpen) return null;
+
+				return (
+					<div className="modal-overlay" onClick={onClose}>
+						<div className="modal" onClick={(e) => e.stopPropagation()}>
+							<div className="modal-header">
+								<h3 className="modal-title">{title}</h3>
+							</div>
+							<div className="modal-body">{children}</div>
+						</div>
+					</div>
+				);
+			};
+
+			const LoginView = ({ onLoginSuccess }) => {
+				const [username, setUsername] = useState("");
+				const [password, setPassword] = useState("");
+				const [error, setError] = useState("");
+
+				const handleSubmit = (e) => {
+					e.preventDefault();
+					setError("");
+
+					fetch("/login", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ username, password }),
+					})
+						.then((res) => res.json())
+						.then((data) => {
+							if (data.success) {
+								onLoginSuccess(username);
+							} else {
+								setError(data.error || "Login failed");
+							}
+						})
+						.catch(() => setError("Network error"));
+				};
+
+				return (
+					<div className="login-container">
+						<div className="login-header">
+							<h1>Home Music Stream</h1>
+							<p>Please login to your account</p>
+						</div>
+						{error && <div className="error-message">{error}</div>}
+						<form onSubmit={handleSubmit}>
+							<div className="form-group">
+								<label className="form-label">Username</label>
+								<input
+									type="text"
+									className="form-control"
+									value={username}
+									onChange={(e) => setUsername(e.target.value)}
+									required
+								/>
+							</div>
+							<div className="form-group">
+								<label className="form-label">Password</label>
+								<input
+									type="password"
+									className="form-control"
+									value={password}
+									onChange={(e) => setPassword(e.target.value)}
+									required
+								/>
+							</div>
+							<button type="submit" className="btn btn-primary">
+								Login
+							</button>
+						</form>
+					</div>
+				);
+			};
+
+			const AdminView = () => {
+				const [users, setUsers] = useState([]);
+				const [newUser, setNewUser] = useState({
+					username: "",
+					password: "",
+					isAdmin: false,
+				});
+				const [message, setMessage] = useState({ type: "", text: "" });
+
+				useEffect(() => {
+					fetchUsers();
+				}, []);
+
+				const fetchUsers = () => {
+					fetch("/api/users")
+						.then((res) => res.json())
+						.then((data) => setUsers(data))
+						.catch((err) => console.error(err));
+				};
+
+				const handleCreateUser = (e) => {
+					e.preventDefault();
+					fetch("/api/users", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify(newUser),
+					})
+						.then((res) => res.json())
+						.then((data) => {
+							if (data.success) {
+								setMessage({
+									type: "success",
+									text: `User ${data.username} created`,
+								});
+								setNewUser({ username: "", password: "", isAdmin: false });
+								fetchUsers();
+							} else {
+								setMessage({ type: "error", text: data.error });
+							}
+						})
+						.catch((err) =>
+							setMessage({ type: "error", text: "Error creating user" })
+						);
+				};
+
+				return (
+					<div className="admin-container">
+						<h1>管理画面</h1>
+						<div className="card">
+							<div className="card-header">
+								<h2 className="card-title">ユーザー管理</h2>
+							</div>
+							{message.text && (
+								<div className={`message message-${message.type}`}>
+									{message.text}
+								</div>
+							)}
+							<form onSubmit={handleCreateUser}>
+								<div className="form-group">
+									<label className="form-label">ユーザー名</label>
+									<input
+										type="text"
+										className="form-control"
+										value={newUser.username}
+										onChange={(e) =>
+											setNewUser({ ...newUser, username: e.target.value })
+										}
+										required
+									/>
+								</div>
+								<div className="form-group">
+									<label className="form-label">パスワード</label>
+									<input
+										type="password"
+										className="form-control"
+										value={newUser.password}
+										onChange={(e) =>
+											setNewUser({ ...newUser, password: e.target.value })
+										}
+										required
+									/>
+								</div>
+								<div className="checkbox-group">
+									<input
+										type="checkbox"
+										id="isAdmin"
+										checked={newUser.isAdmin}
+										onChange={(e) =>
+											setNewUser({ ...newUser, isAdmin: e.target.checked })
+										}
+									/>
+									<label htmlFor="isAdmin">管理者権限を付与</label>
+								</div>
+								<button type="submit" className="btn btn-primary">
+									ユーザーを作成
+								</button>
+							</form>
+						</div>
+						<div className="card">
+							<div className="card-header">
+								<h2 className="card-title">ユーザー一覧</h2>
+							</div>
+							<table className="table">
+								<thead>
+									<tr>
+										<th>ユーザー名</th>
+										<th>権限</th>
+									</tr>
+								</thead>
+								<tbody>
+									{users.map((user) => (
+										<tr key={user.username}>
+											<td>{user.username}</td>
+											<td>
+												<span
+													className={`role-badge ${
+														user.is_admin ? "role-badge-success" : "role-badge-primary"
+													}`}
+												>
+													{user.is_admin ? "管理者" : "一般ユーザー"}
+												</span>
+											</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				);
+			};
+
+			// Main App Component
+			const App = () => {
+				const [currentView, setCurrentView] = useState("loading"); // loading, login, home, admin
+				const [musicLibrary, setMusicLibrary] = useState({});
+				const [playlist, setPlaylist] = useState([]);
+				const [expandedArtists, setExpandedArtists] = useState({});
+				const [expandedAlbums, setExpandedAlbums] = useState({});
+				const [currentSong, setCurrentSong] = useState(null);
+				const [isPlaying, setIsPlaying] = useState(false);
+				const [searchTerm, setSearchTerm] = useState("");
+				const [duration, setDuration] = useState(0);
+				const [currentTime, setCurrentTime] = useState(0);
+				const [volume, setVolume] = useState(0.1);
+				const [isMuted, setIsMuted] = useState(false);
+				const [isShuffleActive, setIsShuffleActive] = useState(false);
+				const [repeatMode, setRepeatMode] = useState(0); // 0: no repeat, 1: repeat playlist, 2: repeat song
+				const [isAdmin, setIsAdmin] = useState(false);
+
+				// New state variables for playlist saving and loading
+				const [savedPlaylists, setSavedPlaylists] = useState([]);
+				const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+				const [isLoadModalOpen, setIsLoadModalOpen] = useState(false);
+				const [newPlaylistName, setNewPlaylistName] = useState("");
+				const [activeTab, setActiveTab] = useState("current");
+				const [isDraggingProgress, setIsDraggingProgress] = useState(false);
+				const [isDraggingVolume, setIsDraggingVolume] = useState(false);
+				const [isMenuOpen, setIsMenuOpen] = useState(false);
+				const [libraryWidth, setLibraryWidth] = useState(400); // For Desktop (px)
+				const [libraryHeight, setLibraryHeight] = useState(50); // For Mobile (%)
+				const [isResizing, setIsResizing] = useState(false);
+
+				const audioRef = useRef(null);
+				const progressRef = useRef(null);
+				const volumeRef = useRef(null);
+				const playlistItemRefs = useRef({});
+				const playlistRef = useRef(null);
+
+				// Resizing Logic
+				useEffect(() => {
+					const handleMove = (clientX, clientY) => {
+						if (window.innerWidth > 768) {
+							// Desktop: Resize Width
+							const newWidth = Math.max(200, Math.min(clientX, window.innerWidth - 300));
+							setLibraryWidth(newWidth);
+						} else {
+							// Mobile: Resize Height (Percentage)
+							// Calculate percentage based on main container height (approx window height - header - player)
+							// Simply using window height for rough calculation
+							const headerHeight = 50; // approx
+							const playerHeight = 130; // approx
+							const availableHeight = window.innerHeight - headerHeight - playerHeight;
+							const relativeY = clientY - headerHeight;
+							
+							const newHeightPercent = Math.max(10, Math.min((relativeY / availableHeight) * 100, 90));
+							setLibraryHeight(newHeightPercent);
+						}
+					};
+
+					const handleMouseMove = (e) => {
+						if (!isResizing) return;
+						e.preventDefault(); // Prevent text selection
+						handleMove(e.clientX, e.clientY);
+					};
+
+					const handleTouchMove = (e) => {
+						if (!isResizing) return;
+						e.preventDefault(); // Prevent scrolling while resizing
+						const touch = e.touches[0];
+						handleMove(touch.clientX, touch.clientY);
+					};
+
+					const handleEnd = () => {
+						setIsResizing(false);
+						document.body.style.cursor = 'default';
+						document.body.style.userSelect = 'auto';
+					};
+					
+					if (isResizing) {
+						document.addEventListener('mousemove', handleMouseMove);
+						document.addEventListener('mouseup', handleEnd);
+						document.addEventListener('touchmove', handleTouchMove, { passive: false });
+						document.addEventListener('touchend', handleEnd);
+						
+						document.body.style.cursor = window.innerWidth > 768 ? 'col-resize' : 'row-resize';
+						document.body.style.userSelect = 'none'; // Disable selection while resizing
+					}
+					
+					return () => {
+						document.removeEventListener('mousemove', handleMouseMove);
+						document.removeEventListener('mouseup', handleEnd);
+						document.removeEventListener('touchmove', handleTouchMove);
+						document.removeEventListener('touchend', handleEnd);
+						document.body.style.cursor = 'default';
+						document.body.style.userSelect = 'auto';
+					};
+				}, [isResizing]);
+
+				// Check authentication status - Moved to bottom to avoid ReferenceError
+				/*
+				useEffect(() => {
+					fetch("/api/auth/status")
+						.then((res) => res.json())
+						.then((data) => {
+							if (data.isAuthenticated) {
+								setIsAdmin(data.isAdmin);
+								const path = window.location.pathname;
+								if (path === "/admin" && data.isAdmin) {
+									setCurrentView("admin");
+								} else {
+									setCurrentView("home");
+								}
+								// Load library after auth check
+								fetchLibrary();
+								fetchSavedPlaylists();
+							} else {
+								setCurrentView("login");
+							}
+						})
+						.catch(() => setCurrentView("login"));
+				}, []);
+				*/
+
+				// Navigation handler
+				const navigate = (view) => {
+					setCurrentView(view);
+					setIsMenuOpen(false); // Close mobile menu on navigation
+					const path = view === "home" ? "/" : `/${view}`;
+					window.history.pushState(null, "", path);
+				};
+
+				// Login success handler
+				const handleLoginSuccess = () => {
+					// Check admin status again after login
+					fetch("/api/auth/status")
+						.then((res) => res.json())
+						.then((data) => {
+							setIsAdmin(data.isAdmin);
+							setCurrentView("home");
+							window.history.pushState(null, "", "/");
+							fetchLibrary();
+							fetchSavedPlaylists();
+						});
+				};
+
+				// Logout handler
+				const handleLogout = (e) => {
+					e.preventDefault();
+					fetch("/logout")
+						.then(() => {
+							setCurrentView("login");
+							setIsAdmin(false);
+							setPlaylist([]);
+							setCurrentSong(null);
+							setIsPlaying(false);
+							window.history.pushState(null, "", "/login");
+						});
+				};
+
+				// Fetch music library data
+				const fetchLibrary = () => {
+					fetch("/music_structure")
+						.then((response) => {
+							if (!response.ok) {
+								throw new Error("Unauthorized");
+							}
+							return response.json();
+						})
+						.then((data) => {
+							setMusicLibrary(data);
+							// Start with all artists collapsed
+							const artists = {};
+							Object.keys(data).forEach((artist) => {
+								artists[artist] = false;
+								// Initialize albums
+								const albums = {};
+								Object.keys(data[artist]).forEach((album) => {
+									albums[`${artist}__${album}`] = false;
+								});
+								setExpandedAlbums(albums);
+							});
+							setExpandedArtists(artists);
+						})
+						.catch((error) => console.error("Library fetch failed:", error));
+				};
+
+				// Remove old useEffects that might conflict
+				/*
+				useEffect(() => {
+					fetch("/api/users")...
+				}, []);
+				useEffect(() => {
+					fetch("/music_structure")...
+				}, []);
+				*/
+
+				// キーボード操作の制御
+				useEffect(() => {
+					function handleKeyDown(e) {
+						// ユーザーが入力フィールドに入力している場合はキーボード操作を無効にする
+						if (
+							e.target.tagName === "INPUT" ||
+							e.target.tagName === "TEXTAREA"
+						) {
+							return;
+						}
+
+						switch (e.code) {
+							case "Space":
+								e.preventDefault(); // スペースキーでページがスクロールするのを防止
+								togglePlayPause(); // 再生/一時停止の切り替え
+								break;
+							case "ArrowRight":
+								playNextSong(); // 次の曲へ
+								break;
+							case "ArrowLeft":
+								playPreviousSong(); // 前の曲へ
+								break;
+							default:
+								break;
+						}
+					}
+
+					// ウィンドウにイベントリスナーを追加
+					window.addEventListener("keydown", handleKeyDown);
+
+					// クリーンアップ関数（イベントリスナーの削除）
+					return () => {
+						window.removeEventListener("keydown", handleKeyDown);
+					};
+				}, [playlist, currentSong, isPlaying, currentTime]); // 依存配列に必要な変数を追加
+
+				// Fetch saved playlists
+				const fetchSavedPlaylists = () => {
+					fetch("/playlists")
+						.then((response) => {
+							if (!response.ok) {
+								if (response.status === 401) {
+									window.location.href = "/login";
+									return;
+								}
+								return response.json().then((data) => {
+									throw new Error(data.error || "Failed to fetch playlists");
+								});
+							}
+							return response.json();
+						})
+						.then((data) => {
+							setSavedPlaylists(data);
+						})
+						.catch((error) => {
+							console.error("Error fetching saved playlists:", error);
+						});
+				};
+
+				// Handle audio events
+				useEffect(() => {
+					const audio = audioRef.current;
+					if (!audio) return;
+
+					const setAudioData = () => {
+						setDuration(audio.duration);
+						setCurrentTime(audio.currentTime);
+					};
+
+					const setAudioTime = () => setCurrentTime(audio.currentTime);
+
+					const handleEnded = () => {
+						if (repeatMode === 2) {
+							// Repeat single song
+							audioRef.current.currentTime = 0;
+							audioRef.current.play();
+						} else {
+							// Play next song or stop at end of playlist
+							playNextSong();
+						}
+					};
+
+					// Add event listeners
+					audio.addEventListener("loadeddata", setAudioData);
+					audio.addEventListener("timeupdate", setAudioTime);
+					audio.addEventListener("ended", handleEnded);
+
+					// Set volume
+					audio.volume = volume;
+
+					// Cleanup
+					return () => {
+						audio.removeEventListener("loadeddata", setAudioData);
+						audio.removeEventListener("timeupdate", setAudioTime);
+						audio.removeEventListener("ended", handleEnded);
+					};
+				}, [currentSong, volume]);
+
+				// Load song when current song changes
+				useEffect(() => {
+					if (currentSong && audioRef.current) {
+						audioRef.current.load();
+						if (isPlaying) {
+							audioRef.current.play().catch((error) => {
+								console.error("Error playing audio:", error);
+								setIsPlaying(false);
+							});
+						}
+					}
+				}, [currentSong]);
+
+				// Toggle play/pause
+				useEffect(() => {
+					if (audioRef.current) {
+						if (isPlaying) {
+							audioRef.current.play().catch((error) => {
+								console.error("Error playing audio:", error);
+								setIsPlaying(false);
+							});
+						} else {
+							audioRef.current.pause();
+						}
+					}
+				}, [isPlaying]);
+
+				// Scroll to current song in playlist when it changes
+				useEffect(() => {
+					if (currentSong && playlistItemRefs.current) {
+						const key = `${currentSong.artist}-${currentSong.album}-${currentSong.song}`;
+						const element = playlistItemRefs.current[key];
+
+						if (element && playlistRef.current) {
+							element.scrollIntoView({ behavior: "smooth", block: "start" });
+						}
+					}
+				}, [currentSong]);
+
+				useEffect(() => {
+					const handleMouseMove = (e) => {
+						if (isDraggingProgress) {
+							handleProgressDrag(e);
+						} else if (isDraggingVolume) {
+							handleVolumeDrag(e);
+						}
+					};
+
+					const handleMouseUp = () => {
+						if (isDraggingProgress) {
+							handleProgressMouseUp();
+						}
+						if (isDraggingVolume) {
+							handleVolumeMouseUp();
+						}
+					};
+
+					document.addEventListener("mousemove", handleMouseMove);
+					document.addEventListener("mouseup", handleMouseUp);
+
+					return () => {
+						document.removeEventListener("mousemove", handleMouseMove);
+						document.removeEventListener("mouseup", handleMouseUp);
+					};
+				}, [isDraggingProgress, isDraggingVolume, duration]);
+
+				// Handle artist expansion
+				const toggleArtistExpansion = (artist) => {
+					setExpandedArtists((prev) => ({
+						...prev,
+						[artist]: !prev[artist],
+					}));
+				};
+
+				// Handle album expansion
+				const toggleAlbumExpansion = (artist, album) => {
+					const key = `${artist}__${album}`;
+					setExpandedAlbums((prev) => ({
+						...prev,
+						[key]: !prev[key],
+					}));
+				};
+
+				// Add song to playlist
+				const addSongToPlaylist = (artist, album, song) => {
+					const newSong = { artist, album, song };
+
+					// Check if song is already in playlist
+					const songExists = playlist.some(
+						(item) =>
+							item.artist === artist &&
+							item.album === album &&
+							item.song === song
+					);
+
+					if (!songExists) {
+						setPlaylist((prev) => [...prev, newSong]);
+					}
+				};
+
+				// Remove song from playlist
+				const removeSongFromPlaylist = (artist, album, song) => {
+					const index = playlist.findIndex(
+						(item) =>
+							item.artist === artist &&
+							item.album === album &&
+							item.song === song
+					);
+
+					if (index === -1) return;
+
+					const newPlaylist = [...playlist];
+					newPlaylist.splice(index, 1);
+					setPlaylist(newPlaylist);
+
+					// If the current song is removed, play the next song
+					if (
+						currentSong &&
+						currentSong.artist === artist &&
+						currentSong.album === album &&
+						currentSong.song === song
+					) {
+						if (newPlaylist.length > 0) {
+							const nextIndex = index < newPlaylist.length ? index : 0;
+							setCurrentSong(newPlaylist[nextIndex]);
+						} else {
+							setCurrentSong(null);
+							setIsPlaying(false);
+						}
+					}
+				};
+
+				// Add all songs from an album to playlist
+				const addAlbumToPlaylist = (artist, album) => {
+					const songs = musicLibrary[artist][album];
+					const newSongs = songs.map((song) => ({ artist, album, song }));
+
+					// Filter out songs that are already in the playlist
+					const songsToAdd = newSongs.filter(
+						(newSong) =>
+							!playlist.some(
+								(item) =>
+									item.artist === newSong.artist &&
+									item.album === newSong.album &&
+									item.song === newSong.song
+							)
+					);
+
+					setPlaylist((prev) => [...prev, ...songsToAdd]);
+				};
+
+				// Remove all songs from an album from playlist
+				const removeAlbumFromPlaylist = (artist, album) => {
+					const newPlaylist = playlist.filter(
+						(item) => !(item.artist === artist && item.album === album)
+					);
+
+					setPlaylist(newPlaylist);
+
+					// If current song is from this album, play next song from new playlist
+					if (
+						currentSong &&
+						currentSong.artist === artist &&
+						currentSong.album === album
+					) {
+						if (newPlaylist.length > 0) {
+							setCurrentSong(newPlaylist[0]);
+						} else {
+							setCurrentSong(null);
+							setIsPlaying(false);
+						}
+					}
+				};
+
+				// Add all songs from an artist to playlist
+				const addArtistToPlaylist = (artist) => {
+					const albums = musicLibrary[artist];
+					let songsToAdd = [];
+
+					Object.keys(albums).forEach((album) => {
+						const songs = albums[album];
+						const newSongs = songs.map((song) => ({ artist, album, song }));
+						songsToAdd = [...songsToAdd, ...newSongs];
+					});
+
+					// Filter out songs that are already in the playlist
+					songsToAdd = songsToAdd.filter(
+						(newSong) =>
+							!playlist.some(
+								(item) =>
+									item.artist === newSong.artist &&
+									item.album === newSong.album &&
+									item.song === newSong.song
+							)
+					);
+
+					setPlaylist((prev) => [...prev, ...songsToAdd]);
+				};
+
+				// Remove all songs from an artist from playlist
+				const removeArtistFromPlaylist = (artist) => {
+					const newPlaylist = playlist.filter((item) => item.artist !== artist);
+
+					setPlaylist(newPlaylist);
+
+					// If current song is from this artist, play next song from new playlist
+					if (currentSong && currentSong.artist === artist) {
+						if (newPlaylist.length > 0) {
+							setCurrentSong(newPlaylist[0]);
+						} else {
+							setCurrentSong(null);
+							setIsPlaying(false);
+						}
+					}
+				};
+
+				// Check if a song is in the playlist
+				const isSongInPlaylist = (artist, album, song) => {
+					return playlist.some(
+						(item) =>
+							item.artist === artist &&
+							item.album === album &&
+							item.song === song
+					);
+				};
+
+				// Check if all songs from an album are in the playlist
+				const isAlbumInPlaylist = (artist, album) => {
+					const albumSongs = musicLibrary[artist][album];
+					return albumSongs.every((song) =>
+						isSongInPlaylist(artist, album, song)
+					);
+				};
+
+				// Check if all songs from an artist are in the playlist
+				const isArtistInPlaylist = (artist) => {
+					const artistAlbums = musicLibrary[artist];
+					return Object.keys(artistAlbums).every((album) =>
+						isAlbumInPlaylist(artist, album)
+					);
+				};
+
+				// Check if some songs from an album are in the playlist
+				const isAlbumPartiallyInPlaylist = (artist, album) => {
+					const albumSongs = musicLibrary[artist][album];
+					return (
+						albumSongs.some((song) => isSongInPlaylist(artist, album, song)) &&
+						!isAlbumInPlaylist(artist, album)
+					);
+				};
+
+				// Check if some songs from an artist are in the playlist
+				const isArtistPartiallyInPlaylist = (artist) => {
+					const artistAlbums = musicLibrary[artist];
+					return (
+						Object.keys(artistAlbums).some(
+							(album) =>
+								isAlbumInPlaylist(artist, album) ||
+								isAlbumPartiallyInPlaylist(artist, album)
+						) && !isArtistInPlaylist(artist)
+					);
+				};
+
+				// Play a specific song from the playlist
+				const playSong = (song) => {
+					setCurrentSong(song);
+					setIsPlaying(true);
+				};
+
+				// Play next song
+				const playNextSong = () => {
+					if (playlist.length === 0 || !currentSong) return;
+
+					const currentIndex = playlist.findIndex(
+						(item) =>
+							item.artist === currentSong.artist &&
+							item.album === currentSong.album &&
+							item.song === currentSong.song
+					);
+
+					if (currentIndex < playlist.length - 1) {
+						setCurrentSong(playlist[currentIndex + 1]);
+					} else if (repeatMode === 1) {
+						// Repeat playlist - go back to first song
+						setCurrentSong(playlist[0]);
+					} else {
+						// No repeat - stay on last song
+						return;
+					}
+					setIsPlaying(true);
+				};
+
+				// Play previous song
+				const playPreviousSong = () => {
+					if (playlist.length === 0 || !currentSong) return;
+
+					const currentIndex = playlist.findIndex(
+						(item) =>
+							item.artist === currentSong.artist &&
+							item.album === currentSong.album &&
+							item.song === currentSong.song
+					);
+
+					if (currentTime > 3) {
+						// If more than 3 seconds into song, restart it
+						audioRef.current.currentTime = 0;
+					} else {
+						// Otherwise go to previous song
+						if (currentIndex > 0) {
+							setCurrentSong(playlist[currentIndex - 1]);
+						} else {
+							setCurrentSong(playlist[playlist.length - 1]);
+						}
+					}
+					setIsPlaying(true);
+				};
+
+				// Toggle play/pause
+				const togglePlayPause = () => {
+					if (playlist.length === 0 && !currentSong) return;
+
+					if (!currentSong && playlist.length > 0) {
+						setCurrentSong(playlist[0]);
+						setIsPlaying(true);
+						return;
+					}
+
+					setIsPlaying(!isPlaying);
+				};
+
+				// Format time
+				const formatTime = (time) => {
+					if (isNaN(time)) return "0:00";
+
+					const minutes = Math.floor(time / 60);
+					const seconds = Math.floor(time % 60);
+					return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+				};
+
+				// Handle progress bar click
+				const handleProgressClick = (e) => {
+					if (!audioRef.current) return;
+
+					const width = progressRef.current.clientWidth;
+					const clickX = e.nativeEvent.offsetX;
+					const clickPercent = clickX / width;
+					const newTime = clickPercent * duration;
+
+					setCurrentTime(newTime);
+					audioRef.current.currentTime = newTime;
+				};
+
+				// Handle volume slider click
+				const handleVolumeClick = (e) => {
+					if (!audioRef.current) return;
+
+					const width = volumeRef.current.clientWidth;
+					const clickX = e.nativeEvent.offsetX;
+					const newVolume = Math.max(0, Math.min(1, clickX / width));
+
+					setVolume(newVolume);
+					setIsMuted(newVolume === 0);
+					audioRef.current.volume = newVolume;
+				};
+
+				// 再生位置シークバーのイベントハンドラー
+				const handleProgressMouseDown = (e) => {
+					if (!audioRef.current) return;
+					setIsDraggingProgress(true);
+					handleProgressDrag(e);
+				};
+
+				const handleProgressDrag = (e) => {
+					if (!audioRef.current || !progressRef.current) return;
+
+					const rect = progressRef.current.getBoundingClientRect();
+					const clickX = e.clientX - rect.left;
+					const clickPercent = Math.max(0, Math.min(1, clickX / rect.width));
+					const newTime = clickPercent * duration;
+
+					setCurrentTime(newTime);
+					audioRef.current.currentTime = newTime;
+				};
+
+				const handleProgressMouseUp = () => {
+					setIsDraggingProgress(false);
+				};
+
+				// 音量スライダーのイベントハンドラー
+				const handleVolumeMouseDown = (e) => {
+					if (!audioRef.current) return;
+					setIsDraggingVolume(true);
+					handleVolumeDrag(e);
+				};
+
+				const handleVolumeDrag = (e) => {
+					if (!audioRef.current || !volumeRef.current) return;
+
+					const rect = volumeRef.current.getBoundingClientRect();
+					const clickX = e.clientX - rect.left;
+					const newVolume = Math.max(0, Math.min(1, clickX / rect.width));
+
+					setVolume(newVolume);
+					setIsMuted(newVolume === 0);
+					audioRef.current.volume = newVolume;
+				};
+
+				const handleVolumeMouseUp = () => {
+					setIsDraggingVolume(false);
+				};
+
+				// Toggle mute
+				const toggleMute = () => {
+					if (!audioRef.current) return;
+
+					if (isMuted) {
+						setIsMuted(false);
+						audioRef.current.volume = volume;
+					} else {
+						setIsMuted(true);
+						audioRef.current.volume = 0;
+					}
+				};
+
+				// Clear playlist
+				const clearPlaylist = () => {
+					setPlaylist([]);
+					if (currentSong) {
+						setCurrentSong(null);
+						setIsPlaying(false);
+					}
+				};
+
+				// Toggle repeat mode
+				const toggleRepeat = () => {
+					setRepeatMode((prev) => (prev + 1) % 3);
+				};
+
+				// Shuffle playlist
+				const shufflePlaylist = () => {
+					if (playlist.length <= 1) return;
+
+					const currentIndex = currentSong
+						? playlist.findIndex(
+								(item) =>
+									item.artist === currentSong.artist &&
+									item.album === currentSong.album &&
+									item.song === currentSong.song
+						  )
+						: -1;
+
+					// Create a copy of the playlist without the current song
+					let newPlaylist = [...playlist];
+					let currentItem = null;
+
+					if (currentIndex !== -1) {
+						currentItem = newPlaylist.splice(currentIndex, 1)[0];
+					}
+
+					// Shuffle the playlist (Fisher-Yates algorithm)
+					for (let i = newPlaylist.length - 1; i > 0; i--) {
+						const j = Math.floor(Math.random() * (i + 1));
+						[newPlaylist[i], newPlaylist[j]] = [newPlaylist[j], newPlaylist[i]];
+					}
+
+					// Put the current song back at the beginning
+					if (currentItem) {
+						newPlaylist.unshift(currentItem);
+					}
+
+					setPlaylist(newPlaylist);
+					setIsShuffleActive(!isShuffleActive);
+				};
+
+				// Save current playlist
+				const savePlaylist = () => {
+					if (playlist.length === 0) {
+						alert("プレイリストが空です。曲を追加してから保存してください。");
+						return;
+					}
+
+					if (!newPlaylistName.trim()) {
+						alert("プレイリスト名を入力してください。");
+						return;
+					}
+
+					fetch("/save_playlist", {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify({
+							name: newPlaylistName,
+							items: playlist,
+						}),
+					})
+						.then((response) => {
+							if (!response.ok) {
+								if (response.status === 401) {
+									window.location.href = "/login";
+									return;
+								}
+								return response.json().then((data) => {
+									throw new Error(data.error || "Failed to save playlist");
+								});
+							}
+							return response.json();
+						})
+						.then((data) => {
+							if (data.success) {
+								alert(`プレイリスト "${newPlaylistName}" を保存しました。`);
+								setIsSaveModalOpen(false);
+								setNewPlaylistName("");
+								fetchSavedPlaylists();
+							}
+						})
+						.catch((error) => {
+							console.error("Error saving playlist:", error);
+							alert("プレイリストの保存中にエラーが発生しました。");
+						});
+				};
+
+				// Load a saved playlist
+				const loadPlaylist = (playlist_id) => {
+					fetch(`/playlist/${playlist_id}`)
+						.then((response) => {
+							if (!response.ok) {
+								if (response.status === 401) {
+									window.location.href = "/login";
+									return;
+								}
+								return response.json().then((data) => {
+									throw new Error(data.error || "Failed to load playlist");
+								});
+							}
+							return response.json();
+						})
+						.then((data) => {
+							if (Array.isArray(data)) {
+								setPlaylist(data);
+								setIsLoadModalOpen(false);
+
+								if (data.length > 0) {
+									setCurrentSong(data[0]);
+								}
+							} else {
+								alert(
+									"プレイリストの読み込みに失敗しました: " +
+										(data.error || "不正なデータ形式")
+								);
+							}
+						})
+						.catch((error) => {
+							console.error("Error loading playlist:", error);
+							alert("プレイリストの読み込み中にエラーが発生しました。");
+						});
+				};
+
+				// Delete a saved playlist
+				const deletePlaylist = (playlist_id, name) => {
+					if (confirm(`プレイリスト "${name}" を削除してもよろしいですか？`)) {
+						fetch(`/delete_playlist/${playlist_id}`, {
+							method: "DELETE",
+						})
+							.then((response) => {
+								if (!response.ok) {
+									if (response.status === 401) {
+										window.location.href = "/login";
+										return;
+									}
+									return response.json().then((data) => {
+										throw new Error(data.error || "Failed to delete playlist");
+									});
+								}
+								return response.json();
+							})
+							.then((data) => {
+								if (data.success) {
+									fetchSavedPlaylists();
+									alert(`プレイリスト "${name}" を削除しました。`);
+								}
+							})
+							.catch((error) => {
+								console.error("Error deleting playlist:", error);
+								alert("プレイリストの削除中にエラーが発生しました。");
+							});
+					}
+				};
+				// Filter library based on search term
+				const filteredLibrary = () => {
+					if (!searchTerm.trim()) return musicLibrary;
+
+					const term = searchTerm.toLowerCase();
+					const filtered = {};
+
+					Object.keys(musicLibrary).forEach((artist) => {
+						if (artist.toLowerCase().includes(term)) {
+							filtered[artist] = { ...musicLibrary[artist] };
+						} else {
+							const filteredAlbums = {};
+
+							Object.keys(musicLibrary[artist]).forEach((album) => {
+								if (album.toLowerCase().includes(term)) {
+									filteredAlbums[album] = [...musicLibrary[artist][album]];
+								} else {
+									const filteredSongs = musicLibrary[artist][album].filter(
+										(song) => song.toLowerCase().includes(term)
+									);
+
+									if (filteredSongs.length > 0) {
+										filteredAlbums[album] = filteredSongs;
+									}
+								}
+							});
+
+							if (Object.keys(filteredAlbums).length > 0) {
+								filtered[artist] = filteredAlbums;
+							}
+						}
+					});
+
+					return filtered;
+				};
+
+				// Auth Check Logic
+				useEffect(() => {
+					fetch("/api/auth/status")
+						.then((res) => res.json())
+						.then((data) => {
+							if (data.isAuthenticated) {
+								setIsAdmin(data.isAdmin);
+								const path = window.location.pathname;
+								if (path === "/admin" && data.isAdmin) {
+									setCurrentView("admin");
+								} else {
+									setCurrentView("home");
+								}
+								fetchLibrary();
+								fetchSavedPlaylists();
+							} else {
+								setCurrentView("login");
+							}
+						})
+						.catch(() => setCurrentView("login"));
+				}, []);
+
+				if (currentView === "loading") return null;
+				if (currentView === "login") return <LoginView onLoginSuccess={handleLoginSuccess} />;
+
+				return (
+					<>
+						<header>
+							<h1 
+								onClick={() => navigate('home')} 
+								style={{cursor: 'pointer'}}
+								title="ホームに戻る"
+							>
+								Home Music Stream
+							</h1>
+							<button
+								className="menu-toggle"
+								onClick={() => setIsMenuOpen(!isMenuOpen)}
+								aria-label="Toggle menu"
+							>
+								<MenuIcon />
+							</button>
+							<div className={`nav-links ${isMenuOpen ? "open" : ""}`}>
+								<button 
+									className={`nav-link ${currentView === 'home' ? 'active' : ''}`}
+									onClick={() => navigate('home')}
+									style={{background:'none', border:'none', cursor:'pointer', fontSize:'1rem', textAlign:'left', fontFamily: 'inherit'}}
+								>
+									ホーム
+								</button>
+								{isAdmin && (
+									<button 
+										className={`nav-link ${currentView === 'admin' ? 'active' : ''}`}
+										onClick={() => navigate('admin')}
+										style={{background:'none', border:'none', cursor:'pointer', fontSize:'1rem', textAlign:'left', fontFamily: 'inherit'}}
+									>
+										管理画面
+									</button>
+								)}
+								<button 
+									className="nav-link" 
+									onClick={handleLogout}
+									style={{background:'none', border:'none', cursor:'pointer', fontSize:'1rem', textAlign:'left', fontFamily: 'inherit'}}
+								>
+									ログアウト
+								</button>
+							</div>
+						</header>
+
+						<main>
+							{currentView === 'admin' ? <AdminView /> : (
+								<>
+							<div 
+								className="library" 
+								style={{ 
+									width: window.innerWidth > 768 ? `${libraryWidth}px` : '100%',
+									height: window.innerWidth <= 768 ? `${libraryHeight}%` : '100%' 
+								}}
+							>
+								<div className="search-box">
+									<div className="search-icon">
+										<SearchIcon />
+									</div>
+									<input
+										type="text"
+										placeholder="Search artists, albums, or songs..."
+										value={searchTerm}
+										onChange={(e) => setSearchTerm(e.target.value)}
+									/>
+								</div>
+
+								{Object.keys(filteredLibrary()).map((artist) => {
+									const artistFullyInPlaylist = isArtistInPlaylist(artist);
+									const artistPartiallyInPlaylist =
+										isArtistPartiallyInPlaylist(artist);
+
+									return (
+										<div key={artist} className="artist-item">
+											<div
+												className={`artist-header ${
+													expandedArtists[artist] ? "expanded" : ""
+												} ${
+													artistFullyInPlaylist || artistPartiallyInPlaylist
+														? "in-playlist"
+														: ""
+												}`}
+												onClick={() => toggleArtistExpansion(artist)}
+											>
+												<span className="expand-icon">
+													<ChevronRightIcon />
+												</span>
+												<span className="artist-name">{artist}</span>
+												<button
+													className={`action-btn ${
+														artistFullyInPlaylist ? "remove" : "add"
+													}`}
+													onClick={(e) => {
+														e.stopPropagation();
+														if (artistFullyInPlaylist) {
+															removeArtistFromPlaylist(artist);
+														} else {
+															addArtistToPlaylist(artist);
+														}
+													}}
+													title={
+														artistFullyInPlaylist
+															? "Remove all songs from playlist"
+															: "Add all songs to playlist"
+													}
+												>
+													{artistFullyInPlaylist ? <MinusIcon /> : <PlusIcon />}
+												</button>
+											</div>
+
+											{expandedArtists[artist] && (
+												<div className="album-list">
+													{Object.keys(filteredLibrary()[artist]).map(
+														(album) => {
+															const albumFullyInPlaylist = isAlbumInPlaylist(
+																artist,
+																album
+															);
+															const albumPartiallyInPlaylist =
+																isAlbumPartiallyInPlaylist(artist, album);
+
+															return (
+																<div key={album} className="album-item">
+																	<div
+																		className={`album-header ${
+																			expandedAlbums[`${artist}__${album}`]
+																				? "expanded"
+																				: ""
+																		} ${
+																			albumFullyInPlaylist ||
+																			albumPartiallyInPlaylist
+																				? "in-playlist"
+																				: ""
+																		}`}
+																		onClick={() =>
+																			toggleAlbumExpansion(artist, album)
+																		}
+																	>
+																		<span className="expand-icon">
+																			<ChevronRightIcon />
+																		</span>
+																		<span className="album-name">{album}</span>
+																		<button
+																			className={`action-btn ${
+																				albumFullyInPlaylist ? "remove" : "add"
+																			}`}
+																			onClick={(e) => {
+																				e.stopPropagation();
+																				if (albumFullyInPlaylist) {
+																					removeAlbumFromPlaylist(
+																						artist,
+																						album
+																					);
+																				} else {
+																					addAlbumToPlaylist(artist, album);
+																				}
+																			}}
+																			title={
+																				albumFullyInPlaylist
+																					? "Remove all songs from playlist"
+																					: "Add all songs to playlist"
+																			}
+																		>
+																			{albumFullyInPlaylist ? (
+																				<MinusIcon />
+																			) : (
+																				<PlusIcon />
+																			)}
+																		</button>
+																	</div>
+
+																	{expandedAlbums[`${artist}__${album}`] && (
+																		<div className="song-list">
+																			{filteredLibrary()[artist][album].map(
+																				(song) => {
+																					const inPlaylist = isSongInPlaylist(
+																						artist,
+																						album,
+																						song
+																					);
+
+																					return (
+																						<div
+																							key={song}
+																							className="song-item"
+																							onClick={() => {
+																								if (!inPlaylist) {
+																									addSongToPlaylist(
+																										artist,
+																										album,
+																										song
+																									);
+																								}
+																								playSong({
+																									artist,
+																									album,
+																									song,
+																								});
+																							}}
+																						>
+																							<span
+																								className={`song-title ${
+																									inPlaylist
+																										? "in-playlist"
+																										: ""
+																								}`}
+																							>
+																								{song.replace(
+																									/\.(mp3|wav)$/,
+																									""
+																								)}
+																							</span>
+																							<button
+																								className={`action-btn ${
+																									inPlaylist ? "remove" : "add"
+																								}`}
+																								onClick={(e) => {
+																									e.stopPropagation();
+																									if (inPlaylist) {
+																										removeSongFromPlaylist(
+																											artist,
+																											album,
+																											song
+																										);
+																									} else {
+																										addSongToPlaylist(
+																											artist,
+																											album,
+																											song
+																										);
+																									}
+																								}}
+																								title={
+																									inPlaylist
+																										? "Remove from playlist"
+																										: "Add to playlist"
+																								}
+																							>
+																								{inPlaylist ? (
+																									<MinusIcon />
+																								) : (
+																									<PlusIcon />
+																								)}
+																							</button>
+																						</div>
+																					);
+																				}
+																			)}
+																		</div>
+																	)}
+																</div>
+															);
+														}
+													)}
+												</div>
+											)}
+										</div>
+									);
+								})}
+							</div>
+
+							<div 
+								className={`resizer ${isResizing ? 'active' : ''}`}
+								onMouseDown={() => setIsResizing(true)}
+								onTouchStart={() => setIsResizing(true)}
+							/>
+
+							<div 
+								className="playlist scrollbar" 
+								ref={playlistRef}
+								style={{ 
+									height: window.innerWidth <= 768 ? `${100 - libraryHeight}%` : '100%' 
+								}}
+							>
+								<div className="playlist-header">
+									<h2>Playlist ({playlist.length})</h2>
+									<div className="playlist-actions">
+										<button
+											className="btn btn-secondary"
+											onClick={() => setIsLoadModalOpen(true)}
+											title="Load playlist"
+										>
+											<LoadIcon />
+										</button>
+										<button
+											className="btn btn-secondary"
+											onClick={() => setIsSaveModalOpen(true)}
+											title="Save playlist"
+										>
+											<SaveIcon />
+										</button>
+										<button
+											className={`btn btn-secondary ${
+												isShuffleActive ? "active" : ""
+											}`}
+											onClick={shufflePlaylist}
+											title="Shuffle playlist"
+										>
+											<ShuffleIcon />
+										</button>
+										<button
+											className="btn btn-primary"
+											onClick={() => {
+												if (!currentSong && playlist.length > 0) {
+													setCurrentSong(playlist[0]);
+												}
+												setIsPlaying(true);
+											}}
+											title="Play All"
+										>
+											<PlayIcon />
+											<span className="btn-text">Play All</span>
+										</button>
+										<button
+											className="btn btn-danger"
+											onClick={clearPlaylist}
+											title="Clear Playlist"
+										>
+											<TrashIcon />
+											<span className="btn-text">Clear</span>
+										</button>
+									</div>
+								</div>
+								<div className={"playlist-body scrollbar"}>
+									{playlist.length === 0 ? (
+										<div className="empty-playlist">
+											<p>Your playlist is empty</p>
+											<div className="add-to-playlist-hint">
+												<span className="hint-icon">
+													<PlusIcon />
+												</span>
+												Add songs from the library
+											</div>
+										</div>
+									) : (
+										playlist.map((item, index) => {
+											const isPlaying =
+												currentSong &&
+												currentSong.artist === item.artist &&
+												currentSong.album === item.album &&
+												currentSong.song === item.song;
+
+											const key = `${item.artist}-${item.album}-${item.song}`;
+
+											return (
+												<div
+													key={`${key}-${index}`}
+													className={`playlist-item ${
+														isPlaying ? "playing" : ""
+													}`}
+													onClick={() => playSong(item)}
+													ref={(el) => (playlistItemRefs.current[key] = el)}
+												>
+													<div>
+														<MusicNoteIcon />
+													</div>
+													<div className="song-info">
+														<div className="song-name">
+															{item.song.replace(/\.(mp3|wav)$/, "")}
+														</div>
+														<div className="song-meta">
+															{item.artist} • {item.album}
+														</div>
+													</div>
+													<button
+														className="action-btn remove"
+														onClick={(e) => {
+															e.stopPropagation();
+															removeSongFromPlaylist(
+																item.artist,
+																item.album,
+																item.song
+															);
+														}}
+														title="Remove from playlist"
+													>
+														<MinusIcon />
+													</button>
+												</div>
+											);
+										})
+									)}
+								</div>
+							</div>
+								</>
+							)}
+						</main>
+
+						<div className="player-controls">
+							<div className="player-wrapper">
+								<div className="player-left">
+									<div className="now-playing">
+										<div className="now-playing-thumbnail">
+											<MusicNoteIcon />
+										</div>
+										<div className="now-playing-info">
+											<div className="now-playing-song">
+												{currentSong
+													? currentSong.song.replace(/\.(mp3|wav)$/, "")
+													: "曲を選択"}
+											</div>
+											<div className="now-playing-artist">
+												{currentSong
+													? `${currentSong.artist} - ${currentSong.album}`
+													: "アーティスト - アルバム"}
+											</div>
+										</div>
+									</div>
+								</div>
+
+								<div className="player-center">
+									<button
+										className="action-btn"
+										onClick={playPreviousSong}
+										disabled={!currentSong}
+									>
+										<PreviousIcon />
+									</button>
+
+									<button
+										className="play-btn"
+										onClick={togglePlayPause}
+										disabled={playlist.length === 0 && !currentSong}
+									>
+										{isPlaying ? <PauseIcon /> : <PlayIcon />}
+									</button>
+
+									<button
+										className="action-btn"
+										onClick={playNextSong}
+										disabled={!currentSong}
+									>
+										<NextIcon />
+									</button>
+								</div>
+
+								<div className="player-right">
+									<div className="progress-area">
+										<div className="time-info">
+											{currentSong ? formatTime(currentTime) : "0:00"}
+										</div>
+
+										<div
+											className="progress-container"
+											ref={progressRef}
+											onClick={handleProgressClick}
+											onMouseDown={handleProgressMouseDown}
+										>
+											<div
+												className="progress-bar"
+												style={{
+													width: `${
+														duration ? (currentTime / duration) * 100 : 0
+													}%`,
+												}}
+											></div>
+										</div>
+
+										<div className="time-info">
+											{currentSong ? formatTime(duration) : "0:00"}
+										</div>
+									</div>
+
+									<div className="volume-area">
+										<button className="action-btn" onClick={toggleMute}>
+											{isMuted ? <MuteIcon /> : <VolumeIcon />}
+										</button>
+
+										<div
+											className="volume-slider"
+											ref={volumeRef}
+											onClick={handleVolumeClick}
+											onMouseDown={handleVolumeMouseDown}
+										>
+											<div
+												className="volume-level"
+												style={{ width: `${volume * 100}%` }}
+											></div>
+										</div>
+									</div>
+
+									<button
+										className={`action-btn toggle-btn ${
+											isShuffleActive ? "active" : ""
+										}`}
+										onClick={shufflePlaylist}
+										title="Shuffle playlist"
+									>
+										<ShuffleIcon />
+									</button>
+
+									<button
+										className={`action-btn toggle-btn ${
+											repeatMode > 0 ? "active" : ""
+										}`}
+										onClick={toggleRepeat}
+										title={
+											repeatMode === 0
+												? "No repeat"
+												: repeatMode === 1
+												? "Repeat playlist"
+												: "Repeat song"
+										}
+									>
+										{repeatMode === 0 ? (
+											<NoRepeatIcon />
+										) : repeatMode === 1 ? (
+											<RepeatIcon />
+										) : (
+											<RepeatOneIcon />
+										)}
+									</button>
+								</div>
+							</div>
+						</div>
+
+						<audio ref={audioRef}>
+							{currentSong && (
+								<source
+									src={`/music/${currentSong.artist}/${currentSong.album}/${currentSong.song}`}
+								/>
+							)}
+						</audio>
+
+						{/* Save Playlist Modal */}
+						<Modal
+							isOpen={isSaveModalOpen}
+							onClose={() => setIsSaveModalOpen(false)}
+							title="プレイリストを保存"
+						>
+							<div className="form-group">
+								<label className="form-label">プレイリスト名</label>
+								<input
+									type="text"
+									className="form-control"
+									value={newPlaylistName}
+									onChange={(e) => setNewPlaylistName(e.target.value)}
+									placeholder="プレイリスト名を入力"
+								/>
+							</div>
+							<div className="modal-footer">
+								<button
+									className="btn btn-secondary"
+									onClick={() => setIsSaveModalOpen(false)}
+								>
+									キャンセル
+								</button>
+								<button className="btn btn-primary" onClick={savePlaylist}>
+									保存
+								</button>
+							</div>
+						</Modal>
+
+						{/* Load Playlist Modal */}
+						<Modal
+							isOpen={isLoadModalOpen}
+							onClose={() => setIsLoadModalOpen(false)}
+							title="プレイリストを読み込む"
+						>
+							{savedPlaylists.length === 0 ? (
+								<p>保存されたプレイリストはありません。</p>
+							) : (
+								<>
+									{savedPlaylists.map((playlist, index) => (
+										<div key={index} className="saved-playlist-item">
+											<span className="saved-playlist-name">
+												{playlist.name}
+											</span>
+											<button
+												className="action-btn"
+												onClick={() => loadPlaylist(playlist.id)}
+												title="Load playlist"
+											>
+												<LoadIcon />
+											</button>
+											<button
+												className="action-btn remove"
+												onClick={() =>
+													deletePlaylist(playlist.id, playlist.name)
+												}
+												title="Delete playlist"
+											>
+												<TrashIcon />
+											</button>
+										</div>
+									))}
+								</>
+							)}
+							<div className="modal-footer">
+								<button
+									className="btn btn-secondary"
+									onClick={() => setIsLoadModalOpen(false)}
+								>
+									閉じる
+								</button>
+							</div>
+						</Modal>
+					</>
+				);
+			};
+
+			// Render the App
+			ReactDOM.render(<App />, document.getElementById("app"));
+		</script>
+	</body>
+</html>

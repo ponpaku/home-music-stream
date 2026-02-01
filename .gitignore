@@ -1,0 +1,12 @@
+venv/
+__pycache__/
+*.pyc
+static/music/*
+!static/music/.keep
+music_structure.json
+users/*
+!users/.keep
+!users/example_user_structure.json
+playlists/
+*.log
+.DS_Store
