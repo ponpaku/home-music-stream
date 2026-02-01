@@ -1,57 +1,61 @@
 # home-music-stream
 
-A lightweight, intuitive **Home Music Stream** server designed to let you access your local music library from any device on your home network.
+[English version (README.en.md)](./README.en.md)
 
-## Features
+**home-music-stream** は、PC内の音楽ライブラリを家庭内ネットワーク上のどのデバイスからでも手軽に再生できるように設計された、軽量で直感的な音楽ストリーミングサーバーです。
 
-- **Intuitive Interface:** Browse your music library by Artist and Album.
-- **Instant Playback:** Select and play music instantly.
-- **Playlist Management:** Create and manage playlists directly from the UI.
-- **Cross-Device Access:** Host on your PC and listen on your phone or tablet.
+## 特徴
 
-## Why this project?
+- **直感的なインターフェース:** アーティスト名やアルバム名でライブラリをブラウズできます。
+- **即座に再生:** 聴きたい曲をその場ですぐに選択して再生できます。
+- **プレイリスト管理:** UIから直接プレイリストをサクッと作成・管理できます。
+- **マルチデバイス対応:** PCでサーバーを立てれば、スマホやタブレットのブラウザから音楽を楽しめます。
 
-Existing solutions often felt bloated or didn't offer the simple, "select and play" experience I wanted. This project was built to allow:
-- Direct access to the PC's music folder structure.
-- Quick playlist creation.
-- A seamless experience across devices without complex synchronization.
+## 開発の背景
 
-## Setup & Usage
+既存の音楽サーバーは多機能すぎて重かったり、自分のPCにある楽曲フォルダの構造をそのまま直感的に扱えるものが少なかったりしました。
+「もっと手軽に、即座に、PCの中の曲を他の部屋でも聴きたい」という思いから、以下の点にこだわって開発しました。
 
-### Prerequisites
-- Python 3.x installed.
-- Music files (MP3/WAV) placed in `static/music/`.
+- PCの音楽フォルダ構成をそのまま反映。
+- 思い立った時にその場でプレイリストを作成。
+- 複雑な同期設定なしで、デバイス間をシームレスに繋ぐ。
 
-### Directory Structure
-Place your music files in the following structure:
+## セットアップと使用方法
+
+### 事前準備
+- Python 3.x がインストールされていること。
+- 音楽ファイル（MP3/WAV）が `static/music/` フォルダにあること。
+
+### ディレクトリ構成
+音楽ファイルは以下のルールで配置してください：
 ```
 static/music/
-  ├── Artist Name/
-  │   ├── Album Name/
-  │   │   ├── Song1.mp3
-  │   │   └── Song2.mp3
+  ├── アーティスト名/
+  │   ├── アルバム名/
+  │   │   ├── 曲名1.mp3
+  │   │   └── 曲名2.mp3
 ```
 
-### Running the Server
+### サーバーの起動
 
-**Windows:**
-Double-click `run.bat`.
+**Windowsの場合:**
+`run.bat` をダブルクリックしてください。
 
-**Linux/macOS:**
-Run the shell script:
+**Linux/macOSの場合:**
+以下のコマンドを実行してください：
 ```bash
 chmod +x run.sh
 ./run.sh
 ```
 
-The script will automatically set up the virtual environment, install dependencies, and start the server.
+スクリプトが自動的に仮想環境の構築、依存ライブラリのインストールを行い、サーバーを起動します。
 
-### Accessing the App
-Open your browser and navigate to:
-`http://localhost:5000` (or the IP address of the host machine).
+### アプリへのアクセス
+ブラウザを開き、以下のURLにアクセスしてください：
+`http://localhost:5000` （またはホストマシンのIPアドレス）
 
-### Default Login
-- **Username:** `admin`
-- **Password:** `pass0000`
+### デフォルトのログイン情報
+- **ユーザー名:** `admin`
+- **パスワード:** `pass0000`
 
-*Note: Change the default credentials or secret key in `app.py` for production use.*
+*注: 本番環境で使用する場合は、`app.py` 内の秘密鍵やデフォルトのパスワードを変更してください。*
