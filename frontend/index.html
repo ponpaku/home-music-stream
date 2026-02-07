@@ -1910,15 +1910,15 @@
 							setMusicLibrary(data);
 							// Start with all artists collapsed
 							const artists = {};
+							const allAlbums = {};
 							Object.keys(data).forEach((artist) => {
 								artists[artist] = false;
 								// Initialize albums
-								const albums = {};
 								Object.keys(data[artist]).forEach((album) => {
-									albums[`${artist}__${album}`] = false;
+									allAlbums[`${artist}__${album}`] = false;
 								});
-								setExpandedAlbums(albums);
 							});
+							setExpandedAlbums(allAlbums);
 							setExpandedArtists(artists);
 						})
 						.catch((error) => console.error("Library fetch failed:", error));
@@ -2370,7 +2370,7 @@
 								`${currentSong.artist}/${currentSong.album}/${currentSong.song}`
 							)}`;
 							navigator.mediaSession.metadata = new MediaMetadata({
-								title: currentSong.song.replace(/\.(mp3|wav)$/, ""),
+								title: currentSong.song.replace(/\.(mp3|wav|m4a|flac|ogg)$/i, ""),
 								artist: currentSong.artist,
 								album: currentSong.album,
 								artwork: [
@@ -2849,27 +2849,29 @@
 									/>
 								</div>
 
-								{Object.keys(filteredLibrary()).map((artist) => {
-									const artistFullyInPlaylist = isArtistInPlaylist(artist);
+								{Object.keys(filteredLibrary()).sort().map((artist) => {
+									const artistStr = String(artist);
+									const albums = filteredLibrary()[artistStr];
+									const artistFullyInPlaylist = isArtistInPlaylist(artistStr);
 									const artistPartiallyInPlaylist =
-										isArtistPartiallyInPlaylist(artist);
+										isArtistPartiallyInPlaylist(artistStr);
 
 									return (
-										<div key={artist} className="artist-item">
+										<div key={artistStr} className="artist-item">
 											<div
 												className={`artist-header ${
-													expandedArtists[artist] ? "expanded" : ""
+													expandedArtists[artistStr] ? "expanded" : ""
 												} ${
 													artistFullyInPlaylist || artistPartiallyInPlaylist
 														? "in-playlist"
 														: ""
 												}`}
-												onClick={() => toggleArtistExpansion(artist)}
+												onClick={() => toggleArtistExpansion(artistStr)}
 											>
 												<span className="expand-icon">
 													<ChevronRightIcon />
 												</span>
-												<span className="artist-name">{artist}</span>
+												<span className="artist-name">{artistStr}</span>
 												<button
 													className={`action-btn ${
 														artistFullyInPlaylist ? "remove" : "add"
@@ -2877,9 +2879,9 @@
 													onClick={(e) => {
 														e.stopPropagation();
 														if (artistFullyInPlaylist) {
-															removeArtistFromPlaylist(artist);
+															removeArtistFromPlaylist(artistStr);
 														} else {
-															addArtistToPlaylist(artist);
+															addArtistToPlaylist(artistStr);
 														}
 													}}
 													title={
@@ -2892,22 +2894,23 @@
 												</button>
 											</div>
 
-											{expandedArtists[artist] && (
+											{expandedArtists[artistStr] && (
 												<div className="album-list">
-													{Object.keys(filteredLibrary()[artist]).map(
+													{Object.keys(albums).sort().map(
 														(album) => {
+															const albumStr = String(album);
 															const albumFullyInPlaylist = isAlbumInPlaylist(
-																artist,
-																album
+																artistStr,
+																albumStr
 															);
 															const albumPartiallyInPlaylist =
-																isAlbumPartiallyInPlaylist(artist, album);
+																isAlbumPartiallyInPlaylist(artistStr, albumStr);
 
 															return (
-																<div key={album} className="album-item">
+																<div key={albumStr} className="album-item">
 																	<div
 																		className={`album-header ${
-																			expandedAlbums[`${artist}__${album}`]
+																			expandedAlbums[`${artistStr}__${albumStr}`]
 																				? "expanded"
 																				: ""
 																		} ${
@@ -2917,13 +2920,13 @@
 																				: ""
 																		}`}
 																		onClick={() =>
-																			toggleAlbumExpansion(artist, album)
+																			toggleAlbumExpansion(artistStr, albumStr)
 																		}
 																	>
 																		<span className="expand-icon">
 																			<ChevronRightIcon />
 																		</span>
-																		<span className="album-name">{album}</span>
+																		<span className="album-name">{albumStr}</span>
 																		<button
 																			className={`action-btn ${
 																				albumFullyInPlaylist ? "remove" : "add"
@@ -2932,11 +2935,11 @@
 																				e.stopPropagation();
 																				if (albumFullyInPlaylist) {
 																					removeAlbumFromPlaylist(
-																						artist,
-																						album
+																						artistStr,
+																						albumStr
 																					);
 																				} else {
-																					addAlbumToPlaylist(artist, album);
+																					addAlbumToPlaylist(artistStr, albumStr);
 																				}
 																			}}
 																			title={
@@ -2953,13 +2956,13 @@
 																		</button>
 																	</div>
 
-																	{expandedAlbums[`${artist}__${album}`] && (
+																	{expandedAlbums[`${artistStr}__${albumStr}`] && (
 																		<div className="song-list">
-																			{filteredLibrary()[artist][album].map(
+																			{albums[albumStr].map(
 																				(song) => {
 																					const inPlaylist = isSongInPlaylist(
-																						artist,
-																						album,
+																						artistStr,
+																						albumStr,
 																						song
 																					);
 
@@ -2990,7 +2993,7 @@
 																								}`}
 																							>
 																								{song.replace(
-																									/\.(mp3|wav)$/,
+																									/\.(mp3|wav|m4a|flac|ogg)$/i,
 																									""
 																								)}
 																							</span>
@@ -3159,7 +3162,7 @@
 													</div>
 													<div className="song-info">
 														<div className="song-name">
-															{item.song.replace(/\.(mp3|wav)$/, "")}
+															{item.song.replace(/\.(mp3|wav|m4a|flac|ogg)$/i, "")}
 														</div>
 														<div className="song-meta">
 															{item.artist} • {item.album}
@@ -3218,7 +3221,7 @@
 										<div className="now-playing-info">
 											<div className="now-playing-song">
 												{currentSong
-													? currentSong.song.replace(/\.(mp3|wav)$/, "")
+													? currentSong.song.replace(/\.(mp3|wav|m4a|flac|ogg)$/i, "")
 													: "曲を選択"}
 											</div>
 											<div className="now-playing-artist">
@@ -3339,7 +3342,7 @@
 						<audio ref={audioRef}>
 							{currentSong && (
 								<source
-									src={`/music/${currentSong.artist}/${currentSong.album}/${currentSong.song}`}
+									src={`/music/${encodeURIComponent(currentSong.artist)}/${encodeURIComponent(currentSong.album)}/${encodeURIComponent(currentSong.song)}`}
 								/>
 							)}
 						</audio>

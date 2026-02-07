@@ -38,7 +38,8 @@ Main options:
 
 ### Prerequisites
 - Python 3.x installed.
-- Music files (MP3/WAV) placed in `static/music/`.
+- Music files (MP3/WAV/FLAC/OGG/M4A) placed in the directory specified by `MUSIC_DIR`.
+  - **Note: WMA format is NOT supported due to limited browser compatibility.**
 
 ### Directory Structure
 Place your music files in the following structure:

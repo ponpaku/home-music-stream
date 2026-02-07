@@ -6,9 +6,12 @@ import hashlib
 import uuid
 import functools
 import datetime
+import threading
 from flask import Flask, send_from_directory, jsonify, url_for, request, session, redirect, render_template, Response
 from dotenv import load_dotenv
 from mutagen import File as MutagenFile
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
 # .envファイルをロード
 load_dotenv()
@@ -21,8 +24,16 @@ app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=7)
 # アルバムアートのキャッシュ (メモリ上)
 album_art_cache = {}
 
+# スレッドセーフのためのロック
+structure_lock = threading.Lock()
+
 # ディレクトリ設定
 MUSIC_DIR = os.environ.get('MUSIC_DIR', 'static/music')  # 音楽ファイルが保存されているディレクトリへのパス
+
+# Windowsのパス形式（C:\...）が指定されている場合にLinux形式（/mnt/c/...）に変換を試みる
+if os.name == 'posix' and MUSIC_DIR.startswith(('C:\\', 'c:\\')):
+    MUSIC_DIR = '/mnt/c/' + MUSIC_DIR[3:].replace('\\', '/')
+
 USERS_DIR = 'users'  # ユーザー情報を保存するディレクトリ
 MUSIC_STRUCTURE_FILE = 'music_structure.json'
 
@@ -191,21 +202,54 @@ def create_user():
 
 # 音楽構造をJSONファイルに保存する関数
 def save_music_structure_to_json(directory):
-    music_structure = {}
-    for root, dirs, files in os.walk(directory):
-        for file in files:
-            if file.endswith(('.mp3', '.wav')):
-                artist_album = os.path.relpath(root, start=directory).split(os.sep)
-                if len(artist_album) == 2:  # アーティスト/アルバムの構造を想定
-                    artist, album = artist_album
-                    if artist not in music_structure:
-                        music_structure[artist] = {}
-                    if album not in music_structure[artist]:
-                        music_structure[artist][album] = []
-                    music_structure[artist][album].append(file)
-    
-    with open(MUSIC_STRUCTURE_FILE, 'w', encoding='utf-8') as outfile:
-        json.dump(music_structure, outfile, ensure_ascii=False)
+    with structure_lock:
+        music_structure = {}
+        supported_extensions = ('.mp3', '.wav', '.flac', '.ogg', '.m4a')
+        for root, dirs, files in os.walk(directory):
+            for file in files:
+                if file.lower().endswith(supported_extensions):
+                    # 相対パスを取得し、バックスラッシュをスラッシュに統一してから分割
+                    rel_path = os.path.relpath(root, start=directory)
+                    artist_album = rel_path.replace('\\', '/').split('/')
+                    
+                    if len(artist_album) == 1:  # アーティスト直下に曲がある場合
+                        artist = artist_album[0]
+                        album = "アルバム不明"
+                        if artist not in music_structure:
+                            music_structure[artist] = {}
+                        if album not in music_structure[artist]:
+                            music_structure[artist][album] = []
+                        music_structure[artist][album].append(file)
+                    elif len(artist_album) == 2:  # アーティスト/アルバムの構造を想定
+                        artist, album = artist_album
+                        if artist not in music_structure:
+                            music_structure[artist] = {}
+                        if album not in music_structure[artist]:
+                            music_structure[artist][album] = []
+                        music_structure[artist][album].append(file)
+        
+        with open(MUSIC_STRUCTURE_FILE, 'w', encoding='utf-8') as outfile:
+            json.dump(music_structure, outfile, ensure_ascii=False)
+
+# フォルダ変更を監視するクラス
+class MusicDirHandler(FileSystemEventHandler):
+    def on_any_event(self, event):
+        if event.is_directory:
+            # ディレクトリの変更（作成・削除・移動）も構造に影響するため更新
+            save_music_structure_to_json(MUSIC_DIR)
+            return
+        
+        # 音楽ファイルの拡張子をチェック
+        supported_extensions = ('.mp3', '.wav', '.flac', '.ogg', '.m4a')
+        if event.src_path.lower().endswith(supported_extensions):
+            save_music_structure_to_json(MUSIC_DIR)
+
+def start_watchdog():
+    event_handler = MusicDirHandler()
+    observer = Observer()
+    observer.schedule(event_handler, MUSIC_DIR, recursive=True)
+    observer.start()
+    print(f"Watching for changes in {MUSIC_DIR}...")
 
 # JSONファイルから楽曲データをロードする関数
 def load_music_structure():
@@ -452,7 +496,9 @@ if __name__ == '__main__':
 
     init_admin_user()
 
-    
+    # フォルダ監視を開始（デバッグモードのリローダーによる二重起動を防止）
+    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
+        start_watchdog()
 
     port = int(os.environ.get('PORT', 5000))
 
