@@ -260,6 +260,17 @@
 				height: 50px;
 				transition: transform 0.2s, box-shadow 0.2s;
 			}
+			.playlist-thumbnail {
+				width: 32px;
+				height: 32px;
+				background-color: var(--bg-tertiary);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				border-radius: 4px;
+				overflow: hidden;
+				flex-shrink: 0;
+			}
 			.playlist-item:hover {
 				transform: translateY(-2px);
 				box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
@@ -326,6 +337,12 @@
 				border-radius: 4px;
 				margin-right: 10px;
 				flex-shrink: 0;
+				overflow: hidden;
+			}
+			.album-art-img {
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
 			}
 
 			.now-playing-info {
@@ -1581,6 +1598,7 @@
 				const [toasts, setToasts] = useState([]);
 				const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 				const [isDragActive, setIsDragActive] = useState(false);
+				const [artErrors, setArtErrors] = useState(new Set());
 				const fileInputRef = useRef(null);
 				const folderInputRef = useRef(null);
 
@@ -3052,8 +3070,27 @@
 													onClick={() => playSong(item)}
 													ref={(el) => (playlistItemRefs.current[key] = el)}
 												>
-													<div>
-														<MusicNoteIcon />
+													<div className="playlist-thumbnail">
+														{artErrors.has(`${item.artist}/${item.album}/${item.song}`) ? (
+															<MusicNoteIcon />
+														) : (
+															<img
+																src={`/api/album-art/${encodeURIComponent(
+																	`${item.artist}/${item.album}/${item.song}`
+																)}`}
+																className="album-art-img"
+																alt=""
+																onError={() => {
+																	setArtErrors((prev) => {
+																		const next = new Set(prev);
+																		next.add(
+																			`${item.artist}/${item.album}/${item.song}`
+																		);
+																		return next;
+																	});
+																}}
+															/>
+														)}
 													</div>
 													<div className="song-info">
 														<div className="song-name">
@@ -3092,7 +3129,26 @@
 								<div className="player-left">
 									<div className="now-playing">
 										<div className="now-playing-thumbnail">
-											<MusicNoteIcon />
+											{!currentSong || artErrors.has(`${currentSong.artist}/${currentSong.album}/${currentSong.song}`) ? (
+												<MusicNoteIcon />
+											) : (
+												<img
+													src={`/api/album-art/${encodeURIComponent(
+														`${currentSong.artist}/${currentSong.album}/${currentSong.song}`
+													)}`}
+													className="album-art-img"
+													alt=""
+													onError={() => {
+														setArtErrors((prev) => {
+															const next = new Set(prev);
+															next.add(
+																`${currentSong.artist}/${currentSong.album}/${currentSong.song}`
+															);
+															return next;
+														});
+													}}
+												/>
+											)}
 										</div>
 										<div className="now-playing-info">
 											<div className="now-playing-song">

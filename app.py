@@ -6,8 +6,9 @@ import hashlib
 import uuid
 import functools
 import datetime
-from flask import Flask, send_from_directory, jsonify, url_for, request, session, redirect, render_template
+from flask import Flask, send_from_directory, jsonify, url_for, request, session, redirect, render_template, Response
 from dotenv import load_dotenv
+from mutagen import File as MutagenFile
 
 # .envファイルをロード
 load_dotenv()
@@ -16,6 +17,9 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev_secret_key_change_in_production')
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=7)
+
+# アルバムアートのキャッシュ (メモリ上)
+album_art_cache = {}
 
 # ディレクトリ設定
 MUSIC_DIR = os.environ.get('MUSIC_DIR', 'static/music')  # 音楽ファイルが保存されているディレクトリへのパス
@@ -224,6 +228,50 @@ def get_music_structure():
 @login_required
 def stream_music(path):
     return send_from_directory(MUSIC_DIR, path)
+
+@app.route('/api/album-art/<path:path>')
+@login_required
+def get_album_art(path):
+    # キャッシュキーとしてパスを使用
+    if path in album_art_cache:
+        cached_data = album_art_cache[path]
+        if cached_data:
+            return Response(cached_data['data'], mimetype=cached_data['mime'])
+        return jsonify({"error": "No artwork found"}), 404
+
+    full_path = os.path.join(MUSIC_DIR, path)
+    if not os.path.exists(full_path):
+        return jsonify({"error": "File not found"}), 404
+
+    try:
+        audio = MutagenFile(full_path)
+        if audio is None:
+            album_art_cache[path] = None
+            return jsonify({"error": "Unsupported file format"}), 404
+
+        # MP3 (ID3)
+        if 'APIC:' in audio:
+            artwork = audio['APIC:'].data
+            mime = audio['APIC:'].mime
+        # FLAC / OGG (Vorbis Comment)
+        elif hasattr(audio, 'pictures') and audio.pictures:
+            artwork = audio.pictures[0].data
+            mime = audio.pictures[0].mime
+        # MP4 (iTunes style)
+        elif 'covr' in audio:
+            artwork = audio['covr'][0]
+            # covrはMIMEタイプを保持していない場合があるため推測
+            mime = 'image/jpeg' if artwork.startswith(b'\xff\xd8') else 'image/png'
+        else:
+            album_art_cache[path] = None
+            return jsonify({"error": "No artwork found"}), 404
+
+        album_art_cache[path] = {'data': artwork, 'mime': mime}
+        return Response(artwork, mimetype=mime)
+
+    except Exception as e:
+        print(f"Error extracting album art: {e}")
+        return jsonify({"error": "Error extracting artwork"}), 500
 
 @app.route('/get-song-data/<string:song_name>')
 @login_required
