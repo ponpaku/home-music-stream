@@ -17,6 +17,20 @@ Existing solutions often felt bloated or didn't offer the simple, "select and pl
 - Quick playlist creation.
 - A seamless experience across devices without complex synchronization.
 
+## Configuration
+
+You can customize the port and music directory by creating a `.env` file.
+
+1. Copy `.env.example` to `.env`.
+2. Edit the values in `.env` as needed.
+
+Main options:
+- `PORT`: Server startup port (default: 5000)
+- `MUSIC_DIR`: Directory where music files are stored (default: static/music)
+- `SECRET_KEY`: Flask session secret key
+- `ADMIN_USERNAME`: Default admin username
+- `ADMIN_PASSWORD`: Default admin password
+
 ## Setup & Usage
 
 ### Prerequisites

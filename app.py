@@ -1,12 +1,16 @@
 # app.py
 
-from flask import Flask, send_from_directory, jsonify, url_for, request, session, redirect, render_template
 import os
 import json
 import hashlib
 import uuid
 import functools
 import datetime
+from flask import Flask, send_from_directory, jsonify, url_for, request, session, redirect, render_template
+from dotenv import load_dotenv
+
+# .envファイルをロード
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev_secret_key_change_in_production')
@@ -14,16 +18,17 @@ app.config['SESSION_TYPE'] = 'filesystem'
 app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=7)
 
 # ディレクトリ設定
-MUSIC_DIR = 'static/music'  # 音楽ファイルが保存されているディレクトリへのパス
+MUSIC_DIR = os.environ.get('MUSIC_DIR', 'static/music')  # 音楽ファイルが保存されているディレクトリへのパス
 USERS_DIR = 'users'  # ユーザー情報を保存するディレクトリ
 MUSIC_STRUCTURE_FILE = 'music_structure.json'
 
 # ディレクトリが存在しない場合は作成
 os.makedirs(USERS_DIR, exist_ok=True)
+os.makedirs(MUSIC_DIR, exist_ok=True)
 
 # 管理者情報の初期設定
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "pass0000"
+ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'pass0000')
 
 # ユーザー管理関数
 def init_admin_user():
@@ -230,8 +235,8 @@ def get_song_data(song_name):
         for album, songs in albums.items():
             if song_name in songs:
                 # 曲が見つかった場合の処理
-                # 静的ファイルへのパスを生成
-                song_path = url_for('static', filename=f'music/{artist}/{album}/{song_name}')
+                # 音楽ストリーミング用のパスを生成
+                song_path = url_for('stream_music', path=f"{artist}/{album}/{song_name}")
                 return jsonify({"artist": artist, "album": album, "songName": song_name, "path": song_path})
     
     return jsonify({"error": "Song not found"}), 404
@@ -392,8 +397,15 @@ def index():
     return send_from_directory('frontend', 'index.html')
 
 if __name__ == '__main__':
+
     # 初期設定
+
     save_music_structure_to_json(MUSIC_DIR)
+
     init_admin_user()
+
     
-    app.run(host="0.0.0.0", debug=True)
+
+    port = int(os.environ.get('PORT', 5000))
+
+    app.run(host="0.0.0.0", port=port, debug=True)

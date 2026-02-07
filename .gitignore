@@ -10,3 +10,4 @@ users/*
 playlists/
 *.log
 .DS_Store
+.env
