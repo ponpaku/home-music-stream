@@ -1330,6 +1330,18 @@
 				</svg>
 			);
 
+			const EditIcon = () => (
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="16"
+					height="16"
+					viewBox="0 0 24 24"
+					fill="currentColor"
+				>
+					<path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+				</svg>
+			);
+
 			const MenuIcon = () => (
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
@@ -1599,6 +1611,13 @@
 				const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 				const [isDragActive, setIsDragActive] = useState(false);
 				const [artErrors, setArtErrors] = useState(new Set());
+				const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+				const [editingSong, setEditingSong] = useState(null);
+				const [editFormData, setEditFormData] = useState({
+					newTitle: "",
+					newArtist: "",
+					newAlbum: ""
+				});
 				const fileInputRef = useRef(null);
 				const folderInputRef = useRef(null);
 
@@ -2685,6 +2704,62 @@
 							});
 					}
 				};
+
+				const openEditModal = (e, artist, album, song) => {
+					e.stopPropagation();
+					const songTitle = song.replace(/\.(mp3|wav|m4a|flac|ogg)$/i, "");
+					setEditingSong({ artist, album, song });
+					setEditFormData({
+						newTitle: songTitle,
+						newArtist: artist,
+						newAlbum: album
+					});
+					setIsEditModalOpen(true);
+				};
+
+				const handleEditMetadata = () => {
+					if (!editingSong) return;
+
+					fetch("/api/edit-metadata", {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify({
+							artist: editingSong.artist,
+							album: editingSong.album,
+							song: editingSong.song,
+							newTitle: editFormData.newTitle,
+							newArtist: editFormData.newArtist,
+							newAlbum: editFormData.newAlbum
+						}),
+					})
+						.then((response) => {
+							if (!response.ok) {
+								return response.json().then((data) => {
+									throw new Error(data.error || "Failed to update metadata");
+								});
+							}
+							return response.json();
+						})
+						.then((data) => {
+							if (data.success) {
+								addToast("Metadata updated successfully", "success");
+								setIsEditModalOpen(false);
+								fetchLibrary();
+								
+								// If the edited song is currently playing or in playlist, we might need to update it
+								// For simplicity, we just refresh the library. 
+								// If the song path changed, the current playing song might break, 
+								// but it will be updated on next library fetch.
+							}
+						})
+						.catch((error) => {
+							console.error("Error updating metadata:", error);
+							addToast(error.message, "error");
+						});
+				};
+
 				// Filter library based on search term
 				const filteredLibrary = () => {
 					if (!searchTerm.trim()) return musicLibrary;
@@ -2997,38 +3072,49 @@
 																									""
 																								)}
 																							</span>
-																							<button
-																								className={`action-btn ${
-																									inPlaylist ? "remove" : "add"
-																								}`}
-																								onClick={(e) => {
-																									e.stopPropagation();
-																									if (inPlaylist) {
-																										removeSongFromPlaylist(
-																											artist,
-																											album,
-																											song
-																										);
-																									} else {
-																										addSongToPlaylist(
-																											artist,
-																											album,
-																											song
-																										);
-																									}
-																								}}
-																								title={
-																									inPlaylist
-																										? "Remove from playlist"
-																										: "Add to playlist"
-																								}
-																							>
-																								{inPlaylist ? (
-																									<MinusIcon />
-																								) : (
-																									<PlusIcon />
+																							<div style={{display: 'flex', gap: '5px'}}>
+																								{isAdmin && (
+																									<button
+																										className="action-btn"
+																										onClick={(e) => openEditModal(e, artist, album, song)}
+																										title="Edit metadata"
+																									>
+																										<EditIcon />
+																									</button>
 																								)}
-																							</button>
+																								<button
+																									className={`action-btn ${
+																										inPlaylist ? "remove" : "add"
+																									}`}
+																									onClick={(e) => {
+																										e.stopPropagation();
+																										if (inPlaylist) {
+																											removeSongFromPlaylist(
+																												artist,
+																												album,
+																												song
+																											);
+																										} else {
+																											addSongToPlaylist(
+																												artist,
+																												album,
+																												song
+																											);
+																										}
+																									}}
+																									title={
+																										inPlaylist
+																											? "Remove from playlist"
+																											: "Add to playlist"
+																									}
+																								>
+																									{inPlaylist ? (
+																										<MinusIcon />
+																									) : (
+																										<PlusIcon />
+																									)}
+																								</button>
+																							</div>
 																						</div>
 																					);
 																				}
@@ -3472,6 +3558,52 @@
 									onClick={() => setIsUploadModalOpen(false)}
 								>
 									Cancel
+								</button>
+							</div>
+						</Modal>
+
+						{/* Edit Metadata Modal */}
+						<Modal
+							isOpen={isEditModalOpen}
+							onClose={() => setIsEditModalOpen(false)}
+							title="楽曲情報の編集"
+						>
+							<div className="form-group">
+								<label className="form-label">曲名</label>
+								<input
+									type="text"
+									className="form-control"
+									value={editFormData.newTitle}
+									onChange={(e) => setEditFormData({...editFormData, newTitle: e.target.value})}
+								/>
+							</div>
+							<div className="form-group">
+								<label className="form-label">アーティスト</label>
+								<input
+									type="text"
+									className="form-control"
+									value={editFormData.newArtist}
+									onChange={(e) => setEditFormData({...editFormData, newArtist: e.target.value})}
+								/>
+							</div>
+							<div className="form-group">
+								<label className="form-label">アルバム</label>
+								<input
+									type="text"
+									className="form-control"
+									value={editFormData.newAlbum}
+									onChange={(e) => setEditFormData({...editFormData, newAlbum: e.target.value})}
+								/>
+							</div>
+							<div className="modal-footer">
+								<button
+									className="btn btn-secondary"
+									onClick={() => setIsEditModalOpen(false)}
+								>
+									キャンセル
+								</button>
+								<button className="btn btn-primary" onClick={handleEditMetadata}>
+									保存
 								</button>
 							</div>
 						</Modal>

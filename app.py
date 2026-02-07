@@ -430,6 +430,104 @@ def delete_playlist(playlist_id):
     
     return jsonify({"success": True})
 
+@app.route('/api/edit-metadata', methods=['POST'])
+@login_required
+@admin_required
+def edit_metadata():
+    data = request.json
+    artist = data.get('artist')
+    album = data.get('album')
+    song = data.get('song')
+    
+    new_artist = data.get('newArtist')
+    new_album = data.get('newAlbum')
+    new_title = data.get('newTitle')
+    
+    if not all([artist, album, song, new_artist, new_album, new_title]):
+        return jsonify({"error": "Missing required fields"}), 400
+    
+    old_path = os.path.join(MUSIC_DIR, artist, album, song)
+    if not os.path.exists(old_path):
+        # Try fallback for "アルバム不明" or other edge cases
+        # In current save_music_structure_to_json, it might be just Artist/Song or Artist/Album/Song
+        if album == "アルバム不明":
+             old_path = os.path.join(MUSIC_DIR, artist, song)
+        
+        if not os.path.exists(old_path):
+            return jsonify({"error": f"File not found: {old_path}"}), 404
+    
+    # Sanitize inputs for path usage
+    def sanitize_path_part(part):
+        return "".join([c for c in part if c not in '<>:"/\\|?*']).strip()
+    
+    s_artist = sanitize_path_part(new_artist) or "Unknown Artist"
+    s_album = sanitize_path_part(new_album) or "Unknown Album"
+    s_title = sanitize_path_part(new_title) or "Unknown Title"
+    
+    try:
+        # 1. Update tags using mutagen
+        audio = MutagenFile(old_path)
+        if audio is not None:
+            # Check for ID3 tags (MP3)
+            from mutagen.id3 import ID3, TIT2, TPE1, TALB
+            
+            if audio.tags is None:
+                audio.add_tags()
+            
+            if isinstance(audio.tags, ID3):
+                audio.tags.add(TIT2(encoding=3, text=[new_title]))
+                audio.tags.add(TPE1(encoding=3, text=[new_artist]))
+                audio.tags.add(TALB(encoding=3, text=[new_album]))
+            else:
+                # FLAC, Ogg, m4a, etc. usually support dict-like access
+                audio['title'] = [new_title]
+                audio['artist'] = [new_artist]
+                audio['album'] = [new_album]
+            
+            audio.save()
+        
+        # 2. Rename/Move file to match new metadata if changed
+        # We follow the structure: MUSIC_DIR / Artist / Album / Song
+        # Keep original extension
+        ext = os.path.splitext(song)[1]
+        new_filename = s_title + ext
+        
+        new_dir = os.path.join(MUSIC_DIR, s_artist, s_album)
+        os.makedirs(new_dir, exist_ok=True)
+        
+        new_path = os.path.join(new_dir, new_filename)
+        
+        # If the path is actually different, move it
+        if os.path.abspath(old_path) != os.path.abspath(new_path):
+            # Check if destination already exists
+            if os.path.exists(new_path):
+                # If only case changed on case-insensitive FS, it might be the same file
+                if os.path.abspath(old_path).lower() != os.path.abspath(new_path).lower():
+                    return jsonify({"error": "Destination file already exists"}), 409
+            
+            os.rename(old_path, new_path)
+            
+            # Clean up old empty directories
+            old_album_dir = os.path.dirname(old_path)
+            old_artist_dir = os.path.dirname(old_album_dir)
+            
+            try:
+                if not os.listdir(old_album_dir):
+                    os.rmdir(old_album_dir)
+                if not os.listdir(old_artist_dir):
+                    os.rmdir(old_artist_dir)
+            except OSError:
+                pass # Directory not empty or other error
+        
+        # 3. Rescan library
+        save_music_structure_to_json(MUSIC_DIR)
+        
+        return jsonify({"success": True})
+        
+    except Exception as e:
+        print(f"Error editing metadata: {e}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/upload', methods=['POST'])
 @login_required
 def upload_files():
